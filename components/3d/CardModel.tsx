@@ -29,16 +29,16 @@ export function CardModel({
   // Load FBX Model using R3F Drei helper
   const originalFbx = useFBX('/models/Authentication Card.fbx');
 
-  // Load PBR Texture maps from public/textures
-  const pbrTextures = useLoader(THREE.TextureLoader, [
-    '/textures/Authentication_Card_Authentication_Card_Ba.png',
+  // Load card's dedicated custom texture + PBR material maps from public/textures
+  const dedicatedTexture = useLoader(THREE.TextureLoader, project.texturePath);
+  const pbrMaps = useLoader(THREE.TextureLoader, [
     '/textures/Authentication_Card_Authentication_Card_No.png',
     '/textures/Authentication_Card_Authentication_Card_Ro.png',
     '/textures/Authentication_Card_Authentication_Card_Me.png',
     '/textures/Authentication_Card_Authentication_Card_Am.png',
   ]);
 
-  const [baseMap, normalMap, roughnessMap, metalnessMap, aoMap] = pbrTextures;
+  const [normalMap, roughnessMap, metalnessMap, aoMap] = pbrMaps;
 
   // Clone, rotate vertical facing camera, & center FBX group
   const { clonedFbx, autoScale } = useMemo(() => {
@@ -65,86 +65,19 @@ export function CardModel({
     return { clonedFbx: clone, autoScale: scaleFactor };
   }, [originalFbx]);
 
-  // Dynamic Texture Compositor: overlays project brand details onto the native PBR card map
-  const brandCanvasTexture = useMemo(() => {
-    if (typeof window === 'undefined') return null;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = 1024;
-    const ctx = canvas.getContext('2d');
-
-    if (ctx) {
-      // Draw original high-res PBR base texture first
-      if (baseMap?.image) {
-        ctx.drawImage(baseMap.image, 0, 0, 1024, 1024);
-      } else {
-        ctx.fillStyle = '#0a0d14';
-        ctx.fillRect(0, 0, 1024, 1024);
-      }
-
-      // Accent color glow tint layer
-      ctx.fillStyle = project.accentColor;
-      ctx.globalAlpha = 0.22;
-      ctx.fillRect(0, 0, 1024, 1024);
-      ctx.globalAlpha = 1.0;
-
-      // Outer accent foil trim
-      ctx.strokeStyle = project.accentColor;
-      ctx.lineWidth = 24;
-      ctx.strokeRect(20, 20, 984, 984);
-
-      // Inner subtle border
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-      ctx.lineWidth = 4;
-      ctx.strokeRect(44, 44, 936, 936);
-
-      // Corner accent blocks
-      ctx.fillStyle = project.accentColor;
-      ctx.fillRect(52, 52, 28, 28);
-      ctx.fillRect(944, 52, 28, 28);
-      ctx.fillRect(52, 944, 28, 28);
-      ctx.fillRect(944, 944, 28, 28);
-
-      // Brand Title overlay in lower third
-      ctx.font = '900 72px sans-serif';
-      ctx.fillStyle = '#ffffff';
-      ctx.textAlign = 'center';
-      ctx.shadowColor = project.accentColor;
-      ctx.shadowBlur = 20;
-      ctx.fillText(project.name, 512, 820);
-      ctx.shadowBlur = 0;
-
-      // Project Badge / Subtitle
-      ctx.font = 'bold 32px sans-serif';
-      ctx.fillStyle = project.accentColor;
-      ctx.fillText(project.subtitle.toUpperCase(), 512, 880);
-
-      // Tap cue
-      ctx.font = 'bold 24px sans-serif';
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
-      ctx.fillText('CLICK KEYCARD TO ENTER STORE ↗', 512, 940);
-    }
-
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    tex.needsUpdate = true;
-    return tex;
-  }, [project, baseMap]);
-
-  // Apply materials to cloned FBX meshes
+  // Apply dedicated custom texture and PBR material maps to mesh instances
   useMemo(() => {
     if (!clonedFbx) return;
 
-    baseMap.colorSpace = THREE.SRGBColorSpace;
-    baseMap.needsUpdate = true;
+    dedicatedTexture.colorSpace = THREE.SRGBColorSpace;
+    dedicatedTexture.needsUpdate = true;
 
     clonedFbx.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
 
         const customMat = new THREE.MeshStandardMaterial({
-          map: brandCanvasTexture || baseMap,
+          map: dedicatedTexture,
           normalMap: normalMap,
           normalScale: new THREE.Vector2(0.8, 0.8),
           roughnessMap: roughnessMap,
@@ -161,7 +94,7 @@ export function CardModel({
         mesh.receiveShadow = true;
       }
     });
-  }, [clonedFbx, brandCanvasTexture, baseMap, normalMap, roughnessMap, metalnessMap, aoMap, isSelected]);
+  }, [clonedFbx, dedicatedTexture, normalMap, roughnessMap, metalnessMap, aoMap, isSelected]);
 
   // Frame loop for Ciao Energy carousel position math & physics bobbing
   useFrame((state, delta) => {
