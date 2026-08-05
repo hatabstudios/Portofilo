@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useMemo } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Float, RoundedBox, Text, Cylinder } from "@react-three/drei";
+import { Float, RoundedBox, Text, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 
 export interface ProjectCarouselData {
@@ -49,6 +49,9 @@ export const CAROUSEL_PROJECTS: ProjectCarouselData[] = [
   },
 ];
 
+const FONT_BODONI = "/fonts/BodoniModa.ttf";
+const FONT_MANROPE = "/fonts/Manrope.ttf";
+
 interface CiaoCarouselSceneProps {
   activeIndex: number;
   setActiveIndex: (idx: number) => void;
@@ -57,7 +60,7 @@ interface CiaoCarouselSceneProps {
   mousePos: { x: number; y: number };
 }
 
-// Vertical/Portrait 3D Keycard Mesh (No black artifacts, DoubleSide materials)
+// Vertical Portrait Keycard Mesh (No black artifacts, double-sided materials, sleek chip & strip)
 const VerticalKeycardMesh3D: React.FC<{
   project: ProjectCarouselData;
   index: number;
@@ -73,37 +76,41 @@ const VerticalKeycardMesh3D: React.FC<{
   const isCenter = index === activeIndex;
   const themeColor = useMemo(() => new THREE.Color(project.accentColor), [project.accentColor]);
 
-  // Target 3D coordinates for vertical/portrait card in shallow arc
+  // Target 3D positions in shallow arc
   const targetX = (index - activeIndex) * 3.2;
   const targetY = isCenter ? 0.35 : 0.15;
   const targetZ = isCenter ? 0.4 : -0.7;
-  const targetScale = isCenter ? (isSwiping ? 2.5 : 1.12) : 0.82;
+  const targetScale = isCenter ? (isSwiping ? 2.4 : 1.12) : 0.82;
   const targetRotY = (index - activeIndex) * -0.22;
 
   useFrame((state, delta) => {
     if (!groupRef.current) return;
 
-    // Fast snappy door-entry dolly-in transition on enter (~0.8s)
+    // Fast scale + flash enter transition (~0.3s)
     if (isCenter && isSwiping) {
-      groupRef.current.position.x = THREE.MathUtils.lerp(groupRef.current.position.x, 0, delta * 12);
-      groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, 0.2, delta * 12);
-      groupRef.current.position.z = THREE.MathUtils.lerp(groupRef.current.position.z, 3.8, delta * 14);
-      groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, 0, delta * 14);
-      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, 0, delta * 14);
+      groupRef.current.position.x = THREE.MathUtils.lerp(groupRef.current.position.x, 0, delta * 15);
+      groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, 0.35, delta * 15);
+      groupRef.current.position.z = THREE.MathUtils.lerp(groupRef.current.position.z, 2.5, delta * 15);
+      groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, 0, delta * 15);
+      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, 0, delta * 15);
+
+      if (matRef.current) {
+        matRef.current.emissiveIntensity = THREE.MathUtils.lerp(matRef.current.emissiveIntensity, 2.2, delta * 15);
+      }
       return;
     }
 
-    // Lerp positions & rotations for horizontal carousel transition
-    groupRef.current.position.x = THREE.MathUtils.lerp(groupRef.current.position.x, targetX, delta * 8);
-    groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, targetY, delta * 8);
-    groupRef.current.position.z = THREE.MathUtils.lerp(groupRef.current.position.z, targetZ, delta * 8);
-    groupRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), delta * 8);
+    // Lerp carousel transitions
+    groupRef.current.position.x = THREE.MathUtils.lerp(groupRef.current.position.x, targetX, delta * 9);
+    groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, targetY, delta * 9);
+    groupRef.current.position.z = THREE.MathUtils.lerp(groupRef.current.position.z, targetZ, delta * 9);
+    groupRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), delta * 9);
 
     const idleRot = isCenter ? Math.sin(state.clock.elapsedTime * 1.5) * 0.06 : 0;
     groupRef.current.rotation.y = THREE.MathUtils.lerp(
       groupRef.current.rotation.y,
       targetRotY + idleRot,
-      delta * 7
+      delta * 8
     );
 
     if (matRef.current) {
@@ -111,7 +118,7 @@ const VerticalKeycardMesh3D: React.FC<{
       matRef.current.emissiveIntensity = THREE.MathUtils.lerp(
         matRef.current.emissiveIntensity,
         targetEmissive,
-        delta * 7
+        delta * 8
       );
     }
   });
@@ -156,20 +163,34 @@ const VerticalKeycardMesh3D: React.FC<{
           />
         </RoundedBox>
 
-        {/* Security Chip Mesh (DoubleSide material) */}
+        {/* Security Metallic Gold Chip (DoubleSide material, no black quads) */}
         <mesh position={[-0.45, 0.85, 0.05]}>
-          <planeGeometry args={[0.38, 0.32]} />
-          <meshStandardMaterial color="#f59e0b" metalness={0.95} roughness={0.1} side={THREE.DoubleSide} />
+          <planeGeometry args={[0.38, 0.3]} />
+          <meshStandardMaterial
+            color="#f59e0b"
+            emissive="#d97706"
+            emissiveIntensity={0.4}
+            metalness={0.95}
+            roughness={0.1}
+            side={THREE.DoubleSide}
+          />
         </mesh>
 
-        {/* Studio Emblem Mark Mesh */}
-        <mesh position={[0.4, 0.85, 0.05]}>
-          <planeGeometry args={[0.35, 0.32]} />
-          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.6} side={THREE.DoubleSide} />
-        </mesh>
+        {/* Studio Emblem Monogram Text on Card */}
+        <Text
+          font={FONT_MANROPE}
+          position={[0.45, 0.85, 0.05]}
+          fontSize={0.14}
+          color="#ffffff"
+          anchorX="center"
+          anchorY="middle"
+          fontWeight="bold"
+        >
+          HS
+        </Text>
 
         {/* Holographic Vertical Security Strip (DoubleSide material) */}
-        <mesh position={[0, -0.2, 0.05]}>
+        <mesh position={[0, -0.15, 0.05]}>
           <planeGeometry args={[1.5, 1.4]} />
           <meshStandardMaterial
             color={project.accentColor}
@@ -181,16 +202,18 @@ const VerticalKeycardMesh3D: React.FC<{
           />
         </mesh>
 
-        {/* Door Light Aperture Frame Line (Glows on Enter) */}
-        <mesh position={[0, -1.0, 0.05]}>
-          <planeGeometry args={[1.4, 0.25]} />
-          <meshStandardMaterial
-            color="#ffffff"
-            emissive={project.accentColor}
-            emissiveIntensity={isSwiping ? 1.0 : 0.3}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
+        {/* Card Title Label Text */}
+        <Text
+          font={FONT_BODONI}
+          position={[0, -1.0, 0.05]}
+          fontSize={0.11}
+          color="#ffffff"
+          anchorX="center"
+          anchorY="middle"
+          letterSpacing={0.05}
+        >
+          {project.title}
+        </Text>
 
         {/* Inner Border Glow Line */}
         <lineSegments position={[0, 0, 0.045]}>
@@ -269,7 +292,7 @@ const CornerBrackets3D: React.FC = () => {
   );
 };
 
-// 3D Scene Content Component
+// Main 3D Scene Content
 const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
   activeIndex,
   setActiveIndex,
@@ -297,36 +320,34 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
 
       {/* TOP BAR IN 3D SCENE */}
       <group position={[0, 2.8, 0]}>
-        {/* Left Status Readout */}
+        {/* Left Status Readout (Manrope font) */}
         <Text
+          font={FONT_MANROPE}
           position={[-3.8, 0, 0]}
-          fontSize={0.1}
+          fontSize={0.095}
           color="#a1a1aa"
           anchorX="left"
           anchorY="middle"
-          letterSpacing={0.12}
+          letterSpacing={0.1}
         >
           • HATAB STUDIOS — LIVE
         </Text>
 
-        {/* Center Logo Pedestal & Wordmark */}
+        {/* Center Logo Wordmark (Bodoni Moda Luxury Display Font) */}
         <group position={[0, 0, 0]}>
-          <Cylinder args={[1.2, 1.2, 0.05, 32]} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -0.05]}>
-            <meshStandardMaterial color="#18181b" metalness={0.8} roughness={0.2} />
-          </Cylinder>
           <Text
-            fontSize={0.18}
+            font={FONT_BODONI}
+            fontSize={0.22}
             color="#ffffff"
             anchorX="center"
             anchorY="middle"
-            letterSpacing={0.15}
-            fontWeight="bold"
+            letterSpacing={0.12}
           >
             HATAB STUDIOS HUB
           </Text>
         </group>
 
-        {/* Right Contact Plaque Button */}
+        {/* Right Contact Plaque Button (Manrope font) */}
         <group
           position={[3.8, 0, 0]}
           onPointerOver={(e) => {
@@ -341,11 +362,12 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
           }}
         >
           <Text
-            fontSize={0.1}
+            font={FONT_MANROPE}
+            fontSize={0.095}
             color={activeProject.accentColor}
             anchorX="right"
             anchorY="middle"
-            letterSpacing={0.1}
+            letterSpacing={0.08}
           >
             [ CONTACT / CAIRO 🇪🇬 ]
           </Text>
@@ -365,8 +387,8 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
         />
       ))}
 
-      {/* MINIMAL GLOWING 3D DOT-CLUSTER NAV CONTROLS (No rectangular buttons) */}
-      {/* Left Dot Cluster Button */}
+      {/* MINIMAL GLOWING 3D DOT-CLUSTER NAV CONTROLS (No rectangular buttons!) */}
+      {/* Left Dot Cluster */}
       <group
         position={[-1.7, 0.35, 0.5]}
         onPointerOver={(e) => {
@@ -381,7 +403,7 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
           handlePrev();
         }}
       >
-        <mesh position={[-0.1, 0, 0]}>
+        <mesh position={[-0.08, 0, 0]}>
           <sphereGeometry args={[0.07, 16, 16]} />
           <meshStandardMaterial
             color={activeProject.accentColor}
@@ -389,13 +411,13 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
             emissiveIntensity={0.9}
           />
         </mesh>
-        <mesh position={[0.1, 0, 0]}>
+        <mesh position={[0.08, 0, 0]}>
           <sphereGeometry args={[0.04, 16, 16]} />
           <meshStandardMaterial color="#a1a1aa" />
         </mesh>
       </group>
 
-      {/* Right Dot Cluster Button */}
+      {/* Right Dot Cluster */}
       <group
         position={[1.7, 0.35, 0.5]}
         onPointerOver={(e) => {
@@ -410,11 +432,11 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
           handleNext();
         }}
       >
-        <mesh position={[-0.1, 0, 0]}>
+        <mesh position={[-0.08, 0, 0]}>
           <sphereGeometry args={[0.04, 16, 16]} />
           <meshStandardMaterial color="#a1a1aa" />
         </mesh>
-        <mesh position={[0.1, 0, 0]}>
+        <mesh position={[0.08, 0, 0]}>
           <sphereGeometry args={[0.07, 16, 16]} />
           <meshStandardMaterial
             color={activeProject.accentColor}
@@ -424,41 +446,37 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
         </mesh>
       </group>
 
-      {/* BELOW CENTER CARD — PROJECT PEDESTAL & NAME */}
-      <group position={[0, -1.5, 0.4]}>
-        {/* Disc Pedestal Graphic */}
-        <Cylinder args={[1.8, 1.8, 0.06, 32]} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -0.05]}>
-          <meshStandardMaterial color="#18181b" metalness={0.8} roughness={0.2} />
-        </Cylinder>
-
-        {/* Large Bold Project Name Text */}
+      {/* BELOW CENTER CARD — PROJECT TITLE (Bodoni Moda) & TAGLINE (Manrope) */}
+      <group position={[0, -1.45, 0.4]}>
+        {/* Large Bold Project Name Text in Bodoni Moda */}
         <Text
-          position={[0, 0.12, 0.06]}
-          fontSize={0.26}
+          font={FONT_BODONI}
+          position={[0, 0.1, 0.06]}
+          fontSize={0.28}
           color="#ffffff"
           anchorX="center"
           anchorY="middle"
-          letterSpacing={0.06}
-          fontWeight="black"
+          letterSpacing={0.05}
         >
           {activeProject.title}
         </Text>
 
-        {/* Project Tagline Subtext */}
+        {/* Project Tagline Subtext in Manrope */}
         <Text
+          font={FONT_MANROPE}
           position={[0, -0.22, 0.06]}
           fontSize={0.095}
           color={activeProject.accentColor}
           anchorX="center"
           anchorY="middle"
-          letterSpacing={0.08}
+          letterSpacing={0.06}
         >
           {activeProject.tagline}
         </Text>
 
         {/* Action Prompt */}
         <group
-          position={[0, -0.52, 0.06]}
+          position={[0, -0.5, 0.06]}
           onPointerOver={(e) => {
             e.stopPropagation();
             document.body.style.cursor = "pointer";
@@ -471,8 +489,15 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
             onNavigate(activeIndex);
           }}
         >
-          <Text fontSize={0.1} color="#ffffff" anchorX="center" anchorY="middle" letterSpacing={0.1}>
-            [ CLICK CENTER CARD TO WALK THROUGH DOOR ]
+          <Text
+            font={FONT_MANROPE}
+            fontSize={0.09}
+            color="#ffffff"
+            anchorX="center"
+            anchorY="middle"
+            letterSpacing={0.1}
+          >
+            [ CLICK CENTER CARD TO ENTER ]
           </Text>
         </group>
       </group>
