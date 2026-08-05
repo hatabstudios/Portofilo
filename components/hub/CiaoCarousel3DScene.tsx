@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useRef, useState, useMemo, useEffect, Suspense } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { Float, Text, RoundedBox, Stars } from "@react-three/drei";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Float, Text, RoundedBox, useTexture } from "@react-three/drei";
 import * as THREE from "three";
 
 export interface ProjectCarouselData {
@@ -43,39 +43,66 @@ interface CiaoCarouselSceneProps {
   onNavigate: (index: number) => void;
 }
 
-// Fail-safe 3D Keycard Mesh Component
-const KeycardMeshComponent: React.FC<{
+// 3D Keycard Model with PBR Textures
+const AuthenticatedKeycard3D: React.FC<{
   project: ProjectCarouselData;
   index: number;
   activeIndex: number;
   onSelect: () => void;
-}> = ({ project, index, activeIndex, onSelect }) => {
+  mousePos: { x: number; y: number };
+}> = ({ project, index, activeIndex, onSelect, mousePos }) => {
   const groupRef = useRef<THREE.Group>(null);
-  const [hovered, setHovered] = useState(false);
+  const matRef = useRef<THREE.MeshPhysicalMaterial>(null);
   const isCenter = index === activeIndex;
 
-  // Target coordinates in shallow 3D arc
+  // Load PBR Textures
+  const [baseMap, normalMap, roughnessMap, metallicMap, aoMap] = useTexture([
+    "/textures/keycard/Authentication_Card_Authentication_Card_Ba.png",
+    "/textures/keycard/Authentication_Card_Authentication_Card_No.png",
+    "/textures/keycard/Authentication_Card_Authentication_Card_Ro.png",
+    "/textures/keycard/Authentication_Card_Authentication_Card_Me.png",
+    "/textures/keycard/Authentication_Card_Authentication_Card_Am.png",
+  ]);
+
+  // Target coordinates in 3D shallow arc
   const targetX = (index - activeIndex) * 3.4;
   const targetY = isCenter ? 0.35 : 0.1;
-  const targetZ = isCenter ? 0.4 : -0.8;
-  const targetScale = isCenter ? 1.35 : 0.92;
+  const targetZ = isCenter ? 0.1 : -0.9;
+  const targetScale = isCenter ? 1.35 : 0.88;
   const targetRotY = (index - activeIndex) * -0.28;
 
   useFrame((state, delta) => {
     if (!groupRef.current) return;
 
-    // Smooth carousel lerp positioning
-    groupRef.current.position.x = THREE.MathUtils.lerp(groupRef.current.position.x, targetX, delta * 9);
-    groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, targetY, delta * 9);
-    groupRef.current.position.z = THREE.MathUtils.lerp(groupRef.current.position.z, targetZ, delta * 9);
-    groupRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), delta * 9);
+    // Carousel lerp position
+    groupRef.current.position.x = THREE.MathUtils.lerp(groupRef.current.position.x, targetX, delta * 8);
+    groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, targetY, delta * 8);
+    groupRef.current.position.z = THREE.MathUtils.lerp(groupRef.current.position.z, targetZ, delta * 8);
+    groupRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), delta * 8);
 
-    const idleRot = isCenter ? Math.sin(state.clock.elapsedTime * 1.5) * 0.08 : 0;
+    // Ultra-slow, laggy mouse cursor tracking on center card (doesn't snap!)
+    const mouseTargetX = isCenter ? mousePos.x * 0.3 : 0;
+    const mouseTargetY = isCenter ? -mousePos.y * 0.2 : 0;
+
     groupRef.current.rotation.y = THREE.MathUtils.lerp(
       groupRef.current.rotation.y,
-      targetRotY + idleRot,
-      delta * 8
+      targetRotY + mouseTargetX,
+      delta * 1.5
     );
+
+    groupRef.current.rotation.x = THREE.MathUtils.lerp(
+      groupRef.current.rotation.x,
+      mouseTargetY,
+      delta * 1.5
+    );
+
+    if (matRef.current) {
+      matRef.current.emissiveIntensity = THREE.MathUtils.lerp(
+        matRef.current.emissiveIntensity,
+        isCenter ? 0.45 : 0.05,
+        delta * 6
+      );
+    }
   });
 
   return (
@@ -83,11 +110,9 @@ const KeycardMeshComponent: React.FC<{
       ref={groupRef}
       onPointerOver={(e) => {
         e.stopPropagation();
-        setHovered(true);
         document.body.style.cursor = "pointer";
       }}
       onPointerOut={() => {
-        setHovered(false);
         document.body.style.cursor = "default";
       }}
       onClick={(e) => {
@@ -95,25 +120,29 @@ const KeycardMeshComponent: React.FC<{
         onSelect();
       }}
     >
-      <Float speed={isCenter ? 2 : 0} rotationIntensity={0.1} floatIntensity={isCenter ? 0.25 : 0}>
-        {/* Sleek Vertical 3D Keycard Body */}
+      <Float speed={isCenter ? 1.5 : 0} rotationIntensity={0.05} floatIntensity={isCenter ? 0.15 : 0}>
+        {/* Sleek Vertical Keycard Body */}
         <RoundedBox args={[1.7, 2.7, 0.08]} radius={0.1} smoothness={4}>
           <meshPhysicalMaterial
+            ref={matRef}
+            map={baseMap}
+            normalMap={normalMap}
+            roughnessMap={roughnessMap}
+            metalnessMap={metallicMap}
+            aoMap={aoMap}
             color="#09090b"
             emissive={project.accentColor}
-            emissiveIntensity={isCenter ? 0.45 : 0.08}
+            emissiveIntensity={isCenter ? 0.45 : 0.05}
             metalness={0.9}
             roughness={0.15}
             clearcoat={1.0}
             clearcoatRoughness={0.08}
             reflectivity={0.9}
-            iridescence={0.95}
-            iridescenceIOR={1.3}
             side={THREE.DoubleSide}
           />
         </RoundedBox>
 
-        {/* Metallic Gold Security Chip */}
+        {/* Security Metallic Chip */}
         <mesh position={[-0.45, 0.85, 0.05]}>
           <planeGeometry args={[0.38, 0.3]} />
           <meshStandardMaterial
@@ -126,7 +155,7 @@ const KeycardMeshComponent: React.FC<{
           />
         </mesh>
 
-        {/* Studio Emblem Monogram Text */}
+        {/* Monogram Emblem */}
         <Text
           position={[0.45, 0.85, 0.05]}
           fontSize={0.14}
@@ -151,7 +180,7 @@ const KeycardMeshComponent: React.FC<{
           />
         </mesh>
 
-        {/* Card Title Label Text */}
+        {/* Card Title Label */}
         <Text
           position={[0, -1.0, 0.05]}
           fontSize={0.11}
@@ -163,7 +192,7 @@ const KeycardMeshComponent: React.FC<{
           {project.title}
         </Text>
 
-        {/* Inner Border Glow Line */}
+        {/* Inner Border Glow */}
         <lineSegments position={[0, 0, 0.045]}>
           <edgesGeometry args={[new THREE.PlaneGeometry(1.6, 2.6)]} />
           <lineBasicMaterial color={project.accentColor} linewidth={2} />
@@ -173,11 +202,29 @@ const KeycardMeshComponent: React.FC<{
   );
 };
 
-// Corner Viewfinder Bracket Mesh
+// Overhead Light Ring Fixture Mesh (Ciao Energy Style)
+const TopLightRingFixture: React.FC = () => {
+  return (
+    <group position={[0, 3.2, -0.5]}>
+      {/* Outer Fixture Ring */}
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[1.6, 1.6, 0.25, 32]} />
+        <meshStandardMaterial color="#111113" metalness={0.9} roughness={0.1} />
+      </mesh>
+
+      {/* Emissive Inner Glow Ring */}
+      <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, -0.13, 0]}>
+        <ringGeometry args={[1.2, 1.5, 32]} />
+        <meshBasicMaterial color="#ffffff" side={THREE.DoubleSide} />
+      </mesh>
+    </group>
+  );
+};
+
+// Corner Brackets Mesh
 const CornerBrackets3D: React.FC = () => {
   return (
     <group position={[0, 0, 0]}>
-      {/* Top Left */}
       <lineSegments position={[-4.5, 3.0, 0]}>
         <bufferGeometry
           attach="geometry"
@@ -192,7 +239,6 @@ const CornerBrackets3D: React.FC = () => {
         <lineBasicMaterial color="#ffffff" opacity={0.4} transparent linewidth={2} />
       </lineSegments>
 
-      {/* Top Right */}
       <lineSegments position={[4.5, 3.0, 0]}>
         <bufferGeometry
           attach="geometry"
@@ -201,36 +247,6 @@ const CornerBrackets3D: React.FC = () => {
               new THREE.Vector3(-0.4, 0, 0),
               new THREE.Vector3(0, 0, 0),
               new THREE.Vector3(0, -0.4, 0),
-            ]);
-          }}
-        />
-        <lineBasicMaterial color="#ffffff" opacity={0.4} transparent linewidth={2} />
-      </lineSegments>
-
-      {/* Bottom Left */}
-      <lineSegments position={[-4.5, -3.0, 0]}>
-        <bufferGeometry
-          attach="geometry"
-          onUpdate={(geom) => {
-            geom.setFromPoints([
-              new THREE.Vector3(0, 0.4, 0),
-              new THREE.Vector3(0, 0, 0),
-              new THREE.Vector3(0.4, 0, 0),
-            ]);
-          }}
-        />
-        <lineBasicMaterial color="#ffffff" opacity={0.4} transparent linewidth={2} />
-      </lineSegments>
-
-      {/* Bottom Right */}
-      <lineSegments position={[4.5, -3.0, 0]}>
-        <bufferGeometry
-          attach="geometry"
-          onUpdate={(geom) => {
-            geom.setFromPoints([
-              new THREE.Vector3(-0.4, 0, 0),
-              new THREE.Vector3(0, 0, 0),
-              new THREE.Vector3(0, 0.4, 0),
             ]);
           }}
         />
@@ -247,6 +263,18 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
   onNavigate,
 }) => {
   const activeProject = CAROUSEL_PROJECTS[activeIndex];
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePos({
+        x: (e.clientX / window.innerWidth) * 2 - 1,
+        y: -(e.clientY / window.innerHeight) * 2 + 1,
+      });
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, []);
 
   const handlePrev = () => {
     setActiveIndex((prev) => (prev - 1 + CAROUSEL_PROJECTS.length) % CAROUSEL_PROJECTS.length);
@@ -271,22 +299,29 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
 
   return (
     <>
-      {/* Background Gradient & Stars */}
+      {/* Ciao Energy Dark Studio Spotlight Background */}
       <color attach="background" args={["#030305"]} />
-      <Stars radius={50} depth={50} count={1500} factor={4} saturation={0} fade speed={1.5} />
 
-      {/* Ambient & Volumetric Lighting */}
-      <ambientLight intensity={0.8} />
-      <pointLight position={[0, 5, 6]} intensity={2.2} color="#ffffff" />
-      <pointLight position={[0, -2, 4]} intensity={1.8} color={activeProject.accentColor} />
-      <directionalLight position={[0, 6, 4]} intensity={1.5} />
+      {/* Spotlight Lighting */}
+      <ambientLight intensity={0.6} />
+      <spotLight
+        position={[0, 8, 4]}
+        angle={0.6}
+        penumbra={0.9}
+        intensity={3.5}
+        color="#ffffff"
+      />
+      <pointLight position={[0, -2, 4]} intensity={2.0} color={activeProject.accentColor} />
 
-      {/* Corner Viewfinder Brackets */}
+      {/* Overhead Ring Fixture */}
+      <TopLightRingFixture />
+
+      {/* Viewfinder Brackets */}
       <CornerBrackets3D />
 
-      {/* TOP BAR IN 3D SCENE */}
+      {/* TOP BAR (In Ciao Energy Style) */}
       <group position={[0, 2.8, 0]}>
-        {/* Left Status Readout */}
+        {/* Left Audio Status Readout */}
         <Text
           position={[-3.8, 0, 0]}
           fontSize={0.1}
@@ -295,7 +330,7 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
           anchorY="middle"
           letterSpacing={0.12}
         >
-          • HATAB STUDIOS — LIVE
+          ON 🔊 • HATAB STUDIOS
         </Text>
 
         {/* Center Logo Wordmark */}
@@ -308,10 +343,10 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
           letterSpacing={0.15}
           fontWeight="bold"
         >
-          HATAB STUDIOS HUB
+          HATAB STUDIOS
         </Text>
 
-        {/* Right Contact Link */}
+        {/* Right Contact Button */}
         <group
           position={[3.8, 0, 0]}
           onPointerOver={(e) => {
@@ -332,26 +367,27 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
             anchorY="middle"
             letterSpacing={0.1}
           >
-            [ CONTACT / CAIRO 🇪🇬 ]
+            [ CONTACT ]
           </Text>
         </group>
       </group>
 
-      {/* MAIN CAROUSEL STAGE — 3 KEYCARDS */}
+      {/* MAIN CAROUSEL STAGE — 3 PBR KEYCARDS */}
       {CAROUSEL_PROJECTS.map((project, idx) => (
-        <KeycardMeshComponent
+        <AuthenticatedKeycard3D
           key={project.id}
           project={project}
           index={idx}
           activeIndex={activeIndex}
           onSelect={() => setActiveIndex(idx)}
+          mousePos={mousePos}
         />
       ))}
 
-      {/* MINIMAL GLOWING 3D DOT-CLUSTER NAV CONTROLS */}
-      {/* Left Dot Cluster Button */}
+      {/* CHEVRON ARROWS FLANKING CENTER CARD */}
+      {/* Left Arrow Chevron */}
       <group
-        position={[-2.2, 0.35, 0.5]}
+        position={[-2.3, 0.35, 0.6]}
         onPointerOver={(e) => {
           e.stopPropagation();
           document.body.style.cursor = "pointer";
@@ -364,23 +400,14 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
           handlePrev();
         }}
       >
-        <mesh position={[-0.08, 0, 0]}>
-          <sphereGeometry args={[0.09, 16, 16]} />
-          <meshStandardMaterial
-            color={activeProject.accentColor}
-            emissive={activeProject.accentColor}
-            emissiveIntensity={1.2}
-          />
-        </mesh>
-        <mesh position={[0.08, 0, 0]}>
-          <sphereGeometry args={[0.04, 16, 16]} />
-          <meshStandardMaterial color="#a1a1aa" />
-        </mesh>
+        <Text fontSize={0.25} color="#ffffff" anchorX="center" anchorY="middle">
+          ‹
+        </Text>
       </group>
 
-      {/* Right Dot Cluster Button */}
+      {/* Right Arrow Chevron */}
       <group
-        position={[2.2, 0.35, 0.5]}
+        position={[2.3, 0.35, 0.6]}
         onPointerOver={(e) => {
           e.stopPropagation();
           document.body.style.cursor = "pointer";
@@ -393,37 +420,35 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
           handleNext();
         }}
       >
-        <mesh position={[-0.08, 0, 0]}>
-          <sphereGeometry args={[0.04, 16, 16]} />
-          <meshStandardMaterial color="#a1a1aa" />
-        </mesh>
-        <mesh position={[0.08, 0, 0]}>
-          <sphereGeometry args={[0.09, 16, 16]} />
-          <meshStandardMaterial
-            color={activeProject.accentColor}
-            emissive={activeProject.accentColor}
-            emissiveIntensity={1.2}
-          />
-        </mesh>
+        <Text fontSize={0.25} color="#ffffff" anchorX="center" anchorY="middle">
+          ›
+        </Text>
       </group>
 
-      {/* BELOW CENTER CARD — PROJECT TITLE & EXPLICIT ENTER BUTTON */}
-      <group position={[0, -1.5, 0.4]}>
+      {/* BOTTOM PEDESTAL & PROJECT TITLE (POSITIONED IN FRONT AT Z: 1.0 TO PREVENT CLIPPING!) */}
+      <group position={[0, -1.8, 1.0]}>
+        {/* Pedestal Cap Mesh */}
+        <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, -0.4, -0.4]}>
+          <cylinderGeometry args={[1.5, 1.5, 0.2, 32]} />
+          <meshStandardMaterial color="#111113" metalness={0.9} roughness={0.1} />
+        </mesh>
+
+        {/* Project Name Text (Bold, Front Layer Z: 1.0) */}
         <Text
-          position={[0, 0.15, 0.06]}
-          fontSize={0.28}
+          position={[0, 0.15, 0.1]}
+          fontSize={0.32}
           color="#ffffff"
           anchorX="center"
           anchorY="middle"
-          letterSpacing={0.06}
+          letterSpacing={0.08}
           fontWeight="bold"
         >
           {activeProject.title}
         </Text>
 
-        {/* Dedicated Explicit Enter Site Button */}
+        {/* Dedicated Enter Site Button */}
         <group
-          position={[0, -0.35, 0.06]}
+          position={[0, -0.35, 0.1]}
           onPointerOver={(e) => {
             e.stopPropagation();
             document.body.style.cursor = "pointer";
@@ -437,7 +462,7 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
           }}
         >
           <mesh position={[0, 0, 0]}>
-            <planeGeometry args={[2.8, 0.32]} />
+            <planeGeometry args={[2.8, 0.34]} />
             <meshStandardMaterial color="#18181b" roughness={0.2} metalness={0.8} />
           </mesh>
           <Text
@@ -454,15 +479,15 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
         </group>
       </group>
 
-      {/* BOTTOM SCRUBBER TRACK IN 3D SCENE */}
-      <group position={[0, -2.4, 0.2]}>
-        {/* Scrubber Track Line */}
+      {/* BOTTOM SCRUBBER TRACK (Monochromatic, NO RGB Line!) */}
+      <group position={[0, -2.7, 0.5]}>
+        {/* Scrubber Line */}
         <mesh position={[0, 0, 0]}>
-          <boxGeometry args={[4.2, 0.04, 0.02]} />
+          <boxGeometry args={[4.2, 0.03, 0.01]} />
           <meshBasicMaterial color="#27272a" />
         </mesh>
 
-        {/* 3 Step Stop Markers */}
+        {/* 3 Step Markers */}
         {CAROUSEL_PROJECTS.map((proj, idx) => {
           const stepX = (idx - 1) * 1.8;
           return (
@@ -487,19 +512,12 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
           );
         })}
 
-        {/* Active Scrubber Handle Disc */}
+        {/* Handle Marker */}
         <mesh position={[(activeIndex - 1) * 1.8, 0, 0.04]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.16, 0.16, 0.05, 32]} />
-          <meshStandardMaterial
-            color={activeProject.accentColor}
-            emissive={activeProject.accentColor}
-            emissiveIntensity={0.9}
-          />
+          <cylinderGeometry args={[0.14, 0.14, 0.04, 32]} />
+          <meshStandardMaterial color={activeProject.accentColor} emissive={activeProject.accentColor} emissiveIntensity={0.9} />
         </mesh>
       </group>
-
-      {/* Reflective Ground Grid Floor Plane */}
-      <gridHelper args={[24, 24, activeProject.accentColor, "#18181b"]} position={[0, -3.2, -2]} />
     </>
   );
 };
@@ -527,7 +545,7 @@ export const CiaoCarousel3DScene: React.FC<CiaoCarouselSceneProps> = (props) => 
 
   return (
     <div
-      className="w-full h-screen fixed inset-0 bg-gradient-to-b from-zinc-950 via-zinc-900 to-black select-none"
+      className="w-full h-screen fixed inset-0 bg-zinc-950 select-none"
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
     >
