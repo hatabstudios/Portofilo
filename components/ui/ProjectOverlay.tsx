@@ -2,8 +2,7 @@
 
 import React from 'react';
 import { Project, PROJECTS } from '@/data/projects';
-import { ChevronLeft, ChevronRight, MousePointerClick, MoveHorizontal } from 'lucide-react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { ChevronLeft, ChevronRight, MoveHorizontal } from 'lucide-react';
 
 interface OverlayProps {
   activeProject: Project;
@@ -18,24 +17,13 @@ export function ProjectOverlay({
 }: OverlayProps) {
   const isFirst = activeIndex === 0;
   const isLast = activeIndex === PROJECTS.length - 1;
-  const isRightAligned = activeProject.align === 'right';
 
   return (
     <div className="absolute inset-0 z-10 flex flex-col justify-between p-6 md:p-12 pointer-events-none select-none">
-      {/* Top Metadata Badge & Carousel Navigation */}
+      {/* Top Controls & Active Indicator */}
       <div className="mt-16 md:mt-20 flex items-center justify-between pointer-events-auto">
         <div className="flex items-center gap-3">
-          <span
-            className="px-3 py-1 text-[10px] md:text-xs font-bold tracking-widest font-heading rounded-full uppercase border backdrop-blur-md"
-            style={{
-              borderColor: activeProject.accentColor,
-              color: activeProject.accentColor,
-              backgroundColor: 'rgba(15, 23, 42, 0.6)',
-            }}
-          >
-            {activeProject.badge}
-          </span>
-          <span className="text-[10px] md:text-xs font-semibold tracking-widest text-gray-400 uppercase font-heading">
+          <span className="text-xs md:text-sm font-bold tracking-widest text-gray-300 uppercase font-heading">
             KEYCARD {String(activeIndex + 1).padStart(2, '0')} / {String(PROJECTS.length).padStart(2, '0')}
           </span>
         </div>
@@ -69,57 +57,7 @@ export function ProjectOverlay({
         </div>
       </div>
 
-      {/* Main Content Area — Scoped strictly to Active Project via AnimatePresence (Zero Bleed / Zero Text Stacking) */}
-      <div className="my-auto w-full">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeProject.id}
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.35, ease: 'easeOut' }}
-            className={`max-w-lg pointer-events-none ${
-              isRightAligned ? 'ml-auto text-right' : 'mr-auto text-left'
-            }`}
-          >
-            <div className={`space-y-4 flex flex-col ${isRightAligned ? 'items-end' : 'items-start'}`}>
-              <h2
-                className={`text-5xl sm:text-7xl md:text-8xl font-black font-heading tracking-tight text-white uppercase drop-shadow-2xl leading-none ${
-                  isRightAligned ? 'text-right' : 'text-left'
-                }`}
-                style={{
-                  textShadow: `0 0 40px ${activeProject.glowColor}`,
-                }}
-              >
-                {activeProject.name}
-              </h2>
-
-              <p className={`text-base sm:text-lg md:text-xl font-medium text-amber-200/90 tracking-wide font-heading ${
-                isRightAligned ? 'text-right' : 'text-left'
-              }`}>
-                {activeProject.tagline}
-              </p>
-
-              <p className={`text-xs sm:text-sm text-gray-300/80 leading-relaxed max-w-md ${
-                isRightAligned ? 'text-right' : 'text-left'
-              }`}>
-                {activeProject.description}
-              </p>
-
-              {/* Keycard Entry Cue */}
-              <div className={`pt-2 flex items-center gap-2 text-xs sm:text-sm font-bold font-heading text-amber-400 ${
-                isRightAligned ? 'justify-end' : 'justify-start'
-              }`}>
-                {!isRightAligned && <MousePointerClick size={18} className="animate-bounce" />}
-                <span>CLICK / TAP 3D KEYCARD TO ENTER WEBPAGE ↗</span>
-                {isRightAligned && <MousePointerClick size={18} className="animate-bounce" />}
-              </div>
-            </div>
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
-      {/* Bottom Scroll Cue */}
+      {/* Bottom Carousel Indicator Cue */}
       <div className="mb-4 flex items-center justify-between text-xs text-gray-400 font-heading tracking-widest uppercase pointer-events-auto">
         <div className="flex items-center gap-2 text-[11px] font-semibold text-gray-300">
           <MoveHorizontal size={16} className="text-amber-400 animate-pulse" />

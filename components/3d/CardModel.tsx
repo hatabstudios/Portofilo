@@ -2,9 +2,10 @@
 
 import React, { useMemo, useRef, useState } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
-import { useFBX } from '@react-three/drei';
+import { useFBX, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { Project } from '@/data/projects';
+import { MousePointerClick } from 'lucide-react';
 
 interface CardModelProps {
   project: Project;
@@ -29,8 +30,10 @@ export function CardModel({
   // Load FBX Model using R3F Drei helper
   const originalFbx = useFBX('/models/Authentication Card.fbx');
 
-  // Load card's dedicated custom texture + PBR material maps from public/textures
+  // Load card's dedicated custom texture file from project.texturePath
   const dedicatedTexture = useLoader(THREE.TextureLoader, project.texturePath);
+
+  // Load PBR normal/roughness/metallic/ao maps for realistic lighting reflections
   const pbrMaps = useLoader(THREE.TextureLoader, [
     '/textures/Authentication_Card_Authentication_Card_No.png',
     '/textures/Authentication_Card_Authentication_Card_Ro.png',
@@ -40,12 +43,13 @@ export function CardModel({
 
   const [normalMap, roughnessMap, metalnessMap, aoMap] = pbrMaps;
 
-  // Clone, rotate vertical facing camera, & center FBX group
+  // Clone FBX mesh, stand vertical facing camera, & compute auto-scale
   const { clonedFbx, autoScale } = useMemo(() => {
     const clone = originalFbx.clone(true);
 
-    // Rotate FBX model so card stands vertical and faces camera directly
+    // Rotate FBX geometry so card stands vertical & text is right-side up facing camera
     clone.rotation.x = Math.PI / 2;
+    clone.rotation.z = Math.PI; // Right-side up orientation for texture text
     clone.updateMatrixWorld(true);
 
     // Calculate bounding box in vertical orientation
@@ -58,18 +62,19 @@ export function CardModel({
     clone.position.y = -center.y;
     clone.position.z = -center.z;
 
-    // Standardize vertical height to 3.8 world units in 3D viewport
+    // Standardize vertical height to 3.6 world units in 3D viewport
     const maxDim = Math.max(size.x, size.y, size.z);
-    const scaleFactor = maxDim > 0 ? 3.8 / maxDim : 1.0;
+    const scaleFactor = maxDim > 0 ? 3.6 / maxDim : 1.0;
 
     return { clonedFbx: clone, autoScale: scaleFactor };
   }, [originalFbx]);
 
-  // Apply dedicated custom texture and PBR material maps to mesh instances
+  // Apply card's dedicated custom texture and PBR material maps
   useMemo(() => {
-    if (!clonedFbx) return;
+    if (!clonedFbx || !dedicatedTexture) return;
 
     dedicatedTexture.colorSpace = THREE.SRGBColorSpace;
+    dedicatedTexture.center.set(0.5, 0.5);
     dedicatedTexture.needsUpdate = true;
 
     clonedFbx.traverse((child) => {
@@ -81,7 +86,7 @@ export function CardModel({
           normalMap: normalMap,
           normalScale: new THREE.Vector2(0.8, 0.8),
           roughnessMap: roughnessMap,
-          roughness: isSelected ? 0.35 : 0.55,
+          roughness: isSelected ? 0.3 : 0.5,
           metalnessMap: metalnessMap,
           metalness: 0.85,
           aoMap: aoMap,
@@ -100,7 +105,7 @@ export function CardModel({
   useFrame((state, delta) => {
     if (!groupRef.current) return;
 
-    const cardSpacing = 4.2;
+    const cardSpacing = 4.4;
     const currentPosIndex = index - carouselOffset;
 
     const targetX = currentPosIndex * cardSpacing;
@@ -110,7 +115,7 @@ export function CardModel({
     const targetRotZ = currentPosIndex * -0.04;
 
     const floatOffset = Math.sin(state.clock.elapsedTime * 2 + index) * 0.1;
-    const targetY = isSelected ? 0.1 + floatOffset : floatOffset;
+    const targetY = isSelected ? 0.2 + floatOffset : floatOffset;
 
     const baseScale = isSelected ? autoScale * 1.0 : autoScale * 0.82;
     const hoverScaleBonus = hovered && isSelected ? autoScale * 0.08 : 0;
@@ -161,6 +166,54 @@ export function CardModel({
           distance={6}
         />
       )}
+
+      {/* 3D Local Text Container — Scoped 100% to this card's local 3D coordinate space (Zero Overlap / Zero Bleed) */}
+      <Html
+        position={[0, -2.2, 0.2]}
+        center
+        distanceFactor={7.5}
+        className="pointer-events-none select-none transition-opacity duration-300"
+        style={{
+          opacity: isSelected ? 1 : 0.45,
+        }}
+      >
+        <div className="w-80 text-center space-y-2 font-heading">
+          <span
+            className="inline-block px-3 py-1 text-[10px] md:text-xs font-bold tracking-widest rounded-full uppercase border backdrop-blur-md"
+            style={{
+              borderColor: project.accentColor,
+              color: project.accentColor,
+              backgroundColor: 'rgba(15, 23, 42, 0.75)',
+            }}
+          >
+            {project.badge}
+          </span>
+
+          <h2
+            className="text-4xl md:text-5xl font-black tracking-tight text-white uppercase drop-shadow-xl"
+            style={{
+              textShadow: `0 0 30px ${project.glowColor}`,
+            }}
+          >
+            {project.name}
+          </h2>
+
+          <p className="text-xs md:text-sm font-semibold text-amber-200/90 tracking-wide">
+            {project.tagline}
+          </p>
+
+          <p className="text-[11px] text-gray-300/80 leading-snug line-clamp-2 px-2">
+            {project.description}
+          </p>
+
+          {isSelected && (
+            <div className="pt-2 flex items-center justify-center gap-1.5 text-[11px] font-bold text-amber-400">
+              <MousePointerClick size={14} className="animate-bounce" />
+              <span>CLICK KEYCARD TO ENTER ↗</span>
+            </div>
+          )}
+        </div>
+      </Html>
     </group>
   );
 }
