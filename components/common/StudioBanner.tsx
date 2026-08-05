@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ExternalLink, Sparkles, Dumbbell, Globe, Layers } from "lucide-react";
 
