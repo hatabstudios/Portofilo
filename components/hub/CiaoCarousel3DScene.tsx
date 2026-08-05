@@ -532,7 +532,8 @@ export const CiaoCarousel3DScene: React.FC<CiaoCarouselSceneProps> = (props) => 
     <div className="w-full h-screen fixed inset-0 bg-zinc-950">
       <Canvas
         camera={{ position: [0, 0, 5.0], fov: 46 }}
-        gl={{ antialias: true, alpha: false, dpr: [1, 2] }}
+        dpr={[1, 2]}
+        gl={{ antialias: true, alpha: false }}
         className="w-full h-full"
       >
         <CiaoCarouselSceneContent {...props} />
