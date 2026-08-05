@@ -1,22 +1,23 @@
 import type { Metadata } from "next";
 import { siteConfig } from "@/config/site";
+import { StudioBanner } from "@/components/common/StudioBanner";
 import { Navbar } from "@/components/common/Navbar";
 import { Footer } from "@/components/common/Footer";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: siteConfig.seo.defaultTitle,
-    template: siteConfig.seo.titleTemplate,
+    default: "Hatab Studios | Digital Web Portfolio",
+    template: "%s | Hatab Studios",
   },
-  description: siteConfig.seo.defaultDescription,
-  keywords: siteConfig.seo.keywords,
-  authors: [{ name: siteConfig.name }],
+  description: "Hatab Studios Portfolio - Explore featured digital experiences and web platforms.",
+  keywords: ["Hatab Studios", "Web Portfolio", "Gym Template", "Aasifaa", "Majarrah", "Vercel Apps"],
+  authors: [{ name: "Hatab Studios" }],
   openGraph: {
-    title: siteConfig.seo.defaultTitle,
-    description: siteConfig.seo.defaultDescription,
+    title: "Hatab Studios | Digital Web Portfolio",
+    description: "Explore featured digital experiences and web platforms built by Hatab Studios.",
     url: siteConfig.domain,
-    siteName: siteConfig.name,
+    siteName: "Hatab Studios",
     type: "website",
   },
 };
@@ -29,6 +30,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark scroll-smooth">
       <body className="min-h-screen bg-background text-foreground antialiased flex flex-col selection:bg-primary selection:text-white">
+        <StudioBanner />
         <Navbar />
         <main className="flex-1">{children}</main>
         <Footer />
