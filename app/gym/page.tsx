@@ -1,3 +1,6 @@
+"use client";
+
+import React from "react";
 import { Hero } from "@/components/sections/Hero";
 import { Features } from "@/components/sections/Features";
 import { WhyChooseUs } from "@/components/sections/WhyChooseUs";
@@ -13,14 +16,9 @@ import { FaqSection } from "@/components/sections/FaqSection";
 import { ContactSection } from "@/components/sections/ContactSection";
 import { Newsletter } from "@/components/sections/Newsletter";
 
-export const metadata = {
-  title: "Vortex Athletic Club | Luxury Gym & Fitness Center",
-  description: "Experience elite fitness, state-of-the-art machinery, world-class personal trainers, and high-energy group classes.",
-};
-
 export default function GymPage() {
   return (
-    <>
+    <div className="w-full">
       <Hero />
       <Features />
       <WhyChooseUs />
@@ -35,6 +33,6 @@ export default function GymPage() {
       <FaqSection />
       <ContactSection />
       <Newsletter />
-    </>
+    </div>
   );
 }
