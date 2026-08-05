@@ -477,8 +477,8 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
         })}
 
         {/* Active Scrubber Handle Disc */}
-        <mesh position={[(activeIndex - 1) * 1.8, 0, 0.04]}>
-          <cylinderGeometry args={[0.16, 0.16, 0.05, 32]} rotation={[Math.PI / 2, 0, 0]} />
+        <mesh position={[(activeIndex - 1) * 1.8, 0, 0.04]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.16, 0.16, 0.05, 32]} />
           <meshStandardMaterial
             color={activeProject.accentColor}
             emissive={activeProject.accentColor}
