@@ -2,9 +2,10 @@
 
 import React, { useMemo, useRef, useState } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
-import { useFBX } from '@react-three/drei';
+import { useFBX, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { Project } from '@/data/projects';
+import { MousePointerClick } from 'lucide-react';
 
 interface CardModelProps {
   project: Project;
@@ -32,7 +33,7 @@ export function CardModel({
   // Load card's dedicated custom texture file from project.texturePath
   const dedicatedTexture = useLoader(THREE.TextureLoader, project.texturePath);
 
-  // Load PBR normal map for 3D card edge bevels
+  // Load PBR normal map for 3D card bevels
   const normalMap = useLoader(
     THREE.TextureLoader,
     '/textures/Authentication_Card_Authentication_Card_No.png'
@@ -42,9 +43,9 @@ export function CardModel({
   const { clonedFbx, autoScale } = useMemo(() => {
     const clone = originalFbx.clone(true);
 
-    // Rotate FBX geometry so card stands vertical & texture artwork is right-side up
-    clone.rotation.x = Math.PI / 2;
-    clone.rotation.z = Math.PI; // Right-side up orientation for custom texture artwork
+    // Rotate FBX geometry so card stands upright & texture artwork is right-side up & forward-facing
+    clone.rotation.x = -Math.PI / 2;
+    clone.rotation.z = 0;
     clone.updateMatrixWorld(true);
 
     // Calculate bounding box in vertical orientation
@@ -57,14 +58,14 @@ export function CardModel({
     clone.position.y = -center.y;
     clone.position.z = -center.z;
 
-    // Standardize vertical height to 3.8 world units in 3D viewport
+    // Standardize vertical height to 3.6 world units in 3D viewport
     const maxDim = Math.max(size.x, size.y, size.z);
-    const scaleFactor = maxDim > 0 ? 3.8 / maxDim : 1.0;
+    const scaleFactor = maxDim > 0 ? 3.6 / maxDim : 1.0;
 
     return { clonedFbx: clone, autoScale: scaleFactor };
   }, [originalFbx]);
 
-  // Apply dedicated custom texture artwork in full color without raw gray steel drowning
+  // Apply dedicated custom texture artwork in full color & sharp detail
   useMemo(() => {
     if (!clonedFbx || !dedicatedTexture) return;
 
@@ -80,11 +81,11 @@ export function CardModel({
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
 
-        // Clean material displaying custom artwork texture vibrantly with subtle metallic sheen & normal bevels
+        // Clean material displaying custom artwork texture vibrantly with normal bevels
         const customMat = new THREE.MeshStandardMaterial({
           map: dedicatedTexture,
           normalMap: normalMap || null,
-          normalScale: new THREE.Vector2(0.4, 0.4),
+          normalScale: new THREE.Vector2(0.3, 0.3),
           roughness: isSelected ? 0.25 : 0.45,
           metalness: 0.12, // Subtle sheen so texture artwork pops brightly
           envMapIntensity: isSelected ? 1.4 : 0.8,
@@ -137,6 +138,12 @@ export function CardModel({
 
   const handleClick = (e: any) => {
     e.stopPropagation();
+
+    // Prevent navigation if user was performing a drag / swipe gesture
+    if (typeof window !== 'undefined' && (window as any).__IS_CAROUSEL_DRAGGING__) {
+      return;
+    }
+
     if (isSelected) {
       window.open(project.url, '_blank', 'noopener,noreferrer');
     } else {

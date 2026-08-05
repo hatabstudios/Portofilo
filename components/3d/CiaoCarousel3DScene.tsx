@@ -2,8 +2,8 @@
 
 import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Environment, Float, Preload } from '@react-three/drei';
-import { PROJECTS, Project } from '@/data/projects';
+import { Environment, Preload } from '@react-three/drei';
+import { PROJECTS } from '@/data/projects';
 import { CardModel } from './CardModel';
 import * as THREE from 'three';
 
@@ -21,6 +21,7 @@ function CarouselController({
   const targetOffsetRef = useRef(activeIndex);
   const isDraggingRef = useRef(false);
   const startXRef = useRef(0);
+  const startYRef = useRef(0);
   const dragStartOffsetRef = useRef(activeIndex);
 
   // Sync external index change if updated by dots / buttons
@@ -28,33 +29,44 @@ function CarouselController({
     targetOffsetRef.current = activeIndex;
   }, [activeIndex]);
 
-  // Handle Drag & Touch physics
+  // Handle Drag & Touch physics with drag-vs-click separation
   useEffect(() => {
     const handlePointerDown = (e: PointerEvent) => {
       // Don't drag if clicking buttons or nav
       if ((e.target as HTMLElement)?.closest('button, a')) return;
       isDraggingRef.current = true;
       startXRef.current = e.clientX;
+      startYRef.current = e.clientY;
       dragStartOffsetRef.current = targetOffsetRef.current;
     };
 
     const handlePointerMove = (e: PointerEvent) => {
       if (!isDraggingRef.current) return;
       const deltaX = e.clientX - startXRef.current;
+      const deltaY = e.clientY - startYRef.current;
+
+      // If user moved pointer more than 5px, mark as dragging gesture so click handler doesn't trigger site navigation
+      if (Math.hypot(deltaX, deltaY) > 5) {
+        (window as any).__IS_CAROUSEL_DRAGGING__ = true;
+      }
+
       // Sensitivity scaling
       const deltaOffset = -deltaX / 380;
       let newTarget = dragStartOffsetRef.current + deltaOffset;
-      // Clamp bounds with elastic pull resistance
+      
       const maxIndex = PROJECTS.length - 1;
-      if (newTarget < 0) newTarget = newTarget * 0.3;
-      if (newTarget > maxIndex) maxIndex + (newTarget - maxIndex) * 0.3;
-
-      targetOffsetRef.current = newTarget;
+      targetOffsetRef.current = Math.max(0, Math.min(maxIndex, newTarget));
     };
 
     const handlePointerUp = () => {
       if (!isDraggingRef.current) return;
       isDraggingRef.current = false;
+
+      // Reset drag flag after short delay so click event resolves safely
+      setTimeout(() => {
+        (window as any).__IS_CAROUSEL_DRAGGING__ = false;
+      }, 120);
+
       // Snap to nearest integer index
       const maxIndex = PROJECTS.length - 1;
       const snapped = Math.max(0, Math.min(maxIndex, Math.round(targetOffsetRef.current)));
@@ -146,7 +158,7 @@ export function CiaoCarousel3DScene({
         camera={{ position: [0, 0, 7.2], fov: 42 }}
         gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       >
-        <ambientLight intensity={0.8} />
+        <ambientLight intensity={0.9} />
         <directionalLight
           position={[5, 8, 6]}
           intensity={2.2}

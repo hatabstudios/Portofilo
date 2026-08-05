@@ -11,7 +11,7 @@ export interface Project {
   emblemText: string; // Lettermark logo on card
   bgGradient: string; // Radial CSS background gradient
   texturePath: string; // Dedicated custom texture file per card
-  align: 'left' | 'right'; // Per-card layout alignment to avoid text overlap
+  align: 'left' | 'right'; // Per-card layout alignment (Majarrah left, Aasifa right)
   /*
    * Easy swap for background videos (.mp4 / .webm):
    * Simply set `backgroundVideo: '/videos/majarrah.mp4'` to render video background.
@@ -34,8 +34,8 @@ export const PROJECTS: Project[] = [
     emblemText: 'MJ',
     bgGradient:
       'radial-gradient(ellipse at center, rgba(180, 83, 9, 0.3) 0%, rgba(17, 24, 39, 0.95) 65%, #030712 100%)',
-    texturePath: '/textures/majarrah_keycard_texture.png',
-    align: 'right',
+    texturePath: '/textures/MajarrahKeycardTexture.png',
+    align: 'left',
     backgroundVideo: '',
   },
   {
@@ -52,7 +52,7 @@ export const PROJECTS: Project[] = [
     emblemText: 'AF',
     bgGradient:
       'radial-gradient(ellipse at center, rgba(67, 56, 202, 0.3) 0%, rgba(15, 23, 42, 0.95) 65%, #030712 100%)',
-    texturePath: '/textures/aasifa_keycard_texture.png',
+    texturePath: '/textures/AasifaKeycardTexture.png',
     align: 'right',
     backgroundVideo: '',
   },
