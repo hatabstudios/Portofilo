@@ -78,12 +78,12 @@ export const siteConfig: SiteConfig = {
   },
 
   contact: {
-    phone: "+1 (800) 555-8901",
-    email: "membership@vortexathletic.com",
-    address: "742 Evergreen Terrace, Suite 100",
-    city: "Los Angeles, CA 90015",
+    phone: "010X XXX XXXX",
+    email: "contact@vortexathletic.eg",
+    address: "Pyramids Road, Al Haram",
+    city: "Giza, Cairo, Egypt",
     mapsEmbedUrl:
-      "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d105784.45330364962!2d-118.34300305886367!3d34.05223424109727!2m3!1f0!1f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x80c2c75ddc27da13%3A0xe22fdf6f254608f4!2sLos%20Angeles%2C%20CA!5e0!3m2!1sen!2sus!4v1700000000000!5m2!1sen!2sus",
+      "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3456.123456!2d31.1342!3d29.9792!2m3!1f0!1f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x14584587ac8f291b%3A0x810c2f3fa2a52424!2sThe%20Great%20Pyramid%20of%20Giza!5e0!3m2!1sen!2seg!4v1700000000000!5m2!1sen!2seg",
     workingHours: {
       weekdays: "5:00 AM – 11:00 PM",
       weekends: "6:00 AM – 10:00 PM",
