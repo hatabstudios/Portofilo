@@ -2,16 +2,15 @@
 
 import React, { useMemo, useRef, useState } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
-import { useFBX, Html } from '@react-three/drei';
+import { useFBX } from '@react-three/drei';
 import * as THREE from 'three';
 import { Project } from '@/data/projects';
-import { MousePointerClick } from 'lucide-react';
 
 interface CardModelProps {
   project: Project;
   index: number;
   totalCards: number;
-  carouselOffset: number; // continuously updated scroll/drag offset
+  offsetRef: React.MutableRefObject<number>; // continuous drag offset ref (prevents 60FPS React re-render lag)
   isSelected: boolean;
   onSelect: () => void;
 }
@@ -20,7 +19,7 @@ export function CardModel({
   project,
   index,
   totalCards,
-  carouselOffset,
+  offsetRef,
   isSelected,
   onSelect,
 }: CardModelProps) {
@@ -58,9 +57,9 @@ export function CardModel({
     clone.position.y = -center.y;
     clone.position.z = -center.z;
 
-    // Standardize vertical height to 3.6 world units in 3D viewport
+    // Standardize vertical height to 3.5 world units in 3D viewport
     const maxDim = Math.max(size.x, size.y, size.z);
-    const scaleFactor = maxDim > 0 ? 3.6 / maxDim : 1.0;
+    const scaleFactor = maxDim > 0 ? 3.5 / maxDim : 1.0;
 
     return { clonedFbx: clone, autoScale: scaleFactor };
   }, [originalFbx]);
@@ -71,6 +70,8 @@ export function CardModel({
 
     dedicatedTexture.colorSpace = THREE.SRGBColorSpace;
     dedicatedTexture.center.set(0.5, 0.5);
+    dedicatedTexture.generateMipmaps = true;
+    dedicatedTexture.minFilter = THREE.LinearMipmapLinearFilter;
     dedicatedTexture.needsUpdate = true;
 
     if (normalMap) {
@@ -81,44 +82,50 @@ export function CardModel({
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
 
-        // Clean material displaying custom artwork texture vibrantly with normal bevels
+        // Optimized material for high performance on both desktop & mobile GPU
         const customMat = new THREE.MeshStandardMaterial({
           map: dedicatedTexture,
           normalMap: normalMap || null,
-          normalScale: new THREE.Vector2(0.3, 0.3),
+          normalScale: new THREE.Vector2(0.25, 0.25),
           roughness: isSelected ? 0.25 : 0.45,
-          metalness: 0.12, // Subtle sheen so texture artwork pops brightly
-          envMapIntensity: isSelected ? 1.4 : 0.8,
+          metalness: 0.12,
+          envMapIntensity: isSelected ? 1.3 : 0.7,
         });
 
         mesh.material = customMat;
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
       }
     });
   }, [clonedFbx, dedicatedTexture, normalMap, isSelected]);
 
-  // Frame loop for Ciao Energy carousel position math & physics bobbing
+  // Frame loop smoothly updates 3D mesh position directly from offsetRef (Zero React state re-render overhead)
   useFrame((state, delta) => {
     if (!groupRef.current) return;
 
-    const cardSpacing = 4.4;
-    const currentPosIndex = index - carouselOffset;
+    // Read current continuous scroll/drag offset directly from ref
+    const currentOffset = offsetRef.current;
+
+    // Mobile screen scale adjustment
+    const isMobile = state.viewport.width < 5.5;
+    const cardSpacing = isMobile ? 3.4 : 4.2;
+
+    const currentPosIndex = index - currentOffset;
 
     const targetX = currentPosIndex * cardSpacing;
-    const targetZ = -Math.pow(currentPosIndex, 2) * 0.5;
+    const targetZ = -Math.pow(currentPosIndex, 2) * (isMobile ? 0.6 : 0.5);
 
-    const targetRotY = currentPosIndex * -0.25;
-    const targetRotZ = currentPosIndex * -0.04;
+    const targetRotY = currentPosIndex * -0.22;
+    const targetRotZ = currentPosIndex * -0.03;
 
-    const floatOffset = Math.sin(state.clock.elapsedTime * 2 + index) * 0.1;
-    const targetY = isSelected ? 0.2 + floatOffset : floatOffset;
+    const floatOffset = Math.sin(state.clock.elapsedTime * 2 + index) * (isMobile ? 0.06 : 0.1);
+    const targetY = isSelected ? 0.15 + floatOffset : floatOffset;
 
-    const baseScale = isSelected ? autoScale * 1.0 : autoScale * 0.82;
-    const hoverScaleBonus = hovered && isSelected ? autoScale * 0.08 : 0;
+    // Responsive scaling for mobile screens
+    const responsiveAutoScale = isMobile ? autoScale * 0.72 : autoScale;
+    const baseScale = isSelected ? responsiveAutoScale * 1.0 : responsiveAutoScale * 0.8;
+    const hoverScaleBonus = hovered && isSelected ? responsiveAutoScale * 0.06 : 0;
     const targetScale = baseScale + hoverScaleBonus;
 
-    const lerpSpeed = delta * 8;
+    const lerpSpeed = Math.min(delta * 12, 1.0);
     groupRef.current.position.x = THREE.MathUtils.lerp(groupRef.current.position.x, targetX, lerpSpeed);
     groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, targetY, lerpSpeed);
     groupRef.current.position.z = THREE.MathUtils.lerp(groupRef.current.position.z, targetZ, lerpSpeed);
@@ -164,9 +171,9 @@ export function CardModel({
       {isSelected && (
         <pointLight
           position={[0, 1.5, 1.5]}
-          intensity={4.5}
+          intensity={3.5}
           color={project.accentColor}
-          distance={6}
+          distance={5}
         />
       )}
     </group>

@@ -18,37 +18,38 @@ export function ProjectOverlay({
 }: OverlayProps) {
   const isFirst = activeIndex === 0;
   const isLast = activeIndex === PROJECTS.length - 1;
+  const isRightAligned = activeProject.align === 'right';
 
   return (
-    <div className="absolute inset-0 z-10 flex flex-col justify-between p-6 md:p-12 pointer-events-none select-none">
+    <div className="absolute inset-0 z-10 flex flex-col justify-between p-4 sm:p-6 md:p-12 pointer-events-none select-none">
       {/* Top Controls & Active Indicator */}
-      <div className="mt-16 md:mt-20 flex items-center justify-between pointer-events-auto">
-        <div className="flex items-center gap-3">
+      <div className="mt-14 sm:mt-16 md:mt-20 flex items-center justify-between pointer-events-auto">
+        <div className="flex items-center gap-2 sm:gap-3">
           <span
-            className="px-3 py-1 text-[10px] md:text-xs font-bold tracking-widest font-heading rounded-full uppercase border backdrop-blur-md"
+            className="px-2.5 py-1 text-[9px] sm:text-[10px] md:text-xs font-bold tracking-widest font-heading rounded-full uppercase border backdrop-blur-md"
             style={{
               borderColor: activeProject.accentColor,
               color: activeProject.accentColor,
-              backgroundColor: 'rgba(15, 23, 42, 0.6)',
+              backgroundColor: 'rgba(15, 23, 42, 0.75)',
             }}
           >
             {activeProject.badge}
           </span>
-          <span className="text-[10px] md:text-xs font-semibold tracking-widest text-gray-400 uppercase font-heading">
-            KEYCARD {String(activeIndex + 1).padStart(2, '0')} / {String(PROJECTS.length).padStart(2, '0')}
+          <span className="text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-widest text-gray-400 uppercase font-heading">
+            {String(activeIndex + 1).padStart(2, '0')} / {String(PROJECTS.length).padStart(2, '0')}
           </span>
         </div>
 
         {/* Carousel Prev / Next Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <button
             onClick={() => !isFirst && onSelectIndex(activeIndex - 1)}
             disabled={isFirst}
             aria-label="Previous card"
-            className={`p-2.5 rounded-full border transition-all ${
+            className={`p-2 sm:p-2.5 rounded-full border transition-all ${
               isFirst
                 ? 'border-gray-800 text-gray-600 cursor-not-allowed'
-                : 'border-gray-700 bg-gray-900/60 text-white hover:border-white hover:bg-gray-800'
+                : 'border-gray-700 bg-gray-900/70 text-white hover:border-white hover:bg-gray-800'
             }`}
           >
             <ChevronLeft size={16} />
@@ -57,10 +58,10 @@ export function ProjectOverlay({
             onClick={() => !isLast && onSelectIndex(activeIndex + 1)}
             disabled={isLast}
             aria-label="Next card"
-            className={`p-2.5 rounded-full border transition-all ${
+            className={`p-2 sm:p-2.5 rounded-full border transition-all ${
               isLast
                 ? 'border-gray-800 text-gray-600 cursor-not-allowed'
-                : 'border-gray-700 bg-gray-900/60 text-white hover:border-white hover:bg-gray-800'
+                : 'border-gray-700 bg-gray-900/70 text-white hover:border-white hover:bg-gray-800'
             }`}
           >
             <ChevronRight size={16} />
@@ -68,19 +69,21 @@ export function ProjectOverlay({
         </div>
       </div>
 
-      {/* Main Content Area (Positioned on the RIGHT side to leave 3D cards unblocked & clear) */}
+      {/* Main Content Area (Mobile Responsive Layout) */}
       <div className="my-auto w-full">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeProject.id}
-            initial={{ opacity: 0, x: 20 }}
+            initial={{ opacity: 0, x: isRightAligned ? 20 : -20 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
+            exit={{ opacity: 0, x: isRightAligned ? -20 : 20 }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="max-w-md ml-auto text-right pointer-events-none space-y-3 flex flex-col items-end"
+            className={`max-w-xs sm:max-w-sm md:max-w-md pointer-events-none space-y-2 sm:space-y-3 flex flex-col ${
+              isRightAligned ? 'ml-auto text-right items-end' : 'mr-auto text-left items-start'
+            }`}
           >
             <h2
-              className="text-5xl sm:text-7xl md:text-8xl font-black font-heading tracking-tight text-white uppercase drop-shadow-2xl leading-none text-right"
+              className="text-4xl sm:text-6xl md:text-8xl font-black font-heading tracking-tight text-white uppercase drop-shadow-2xl leading-none"
               style={{
                 textShadow: `0 0 35px ${activeProject.glowColor}`,
               }}
@@ -88,41 +91,44 @@ export function ProjectOverlay({
               {activeProject.name}
             </h2>
 
-            <p className="text-base sm:text-lg md:text-xl font-medium text-amber-200/90 tracking-wide font-heading text-right">
+            <p className="text-xs sm:text-base md:text-xl font-medium text-amber-200/90 tracking-wide font-heading">
               {activeProject.tagline}
             </p>
 
-            <p className="text-xs sm:text-sm text-gray-300/80 leading-relaxed max-w-sm text-right">
+            <p className="text-[11px] sm:text-xs md:text-sm text-gray-300/80 leading-relaxed">
               {activeProject.description}
             </p>
 
             {/* Keycard Entry Cue */}
-            <div className="pt-3 flex items-center justify-end gap-2 text-xs sm:text-sm font-bold font-heading text-amber-400">
-              <span>CLICK / TAP THE 3D KEYCARD TO ENTER WEBPAGE ↗</span>
-              <MousePointerClick size={18} className="animate-bounce" />
+            <div className={`pt-2 flex items-center gap-2 text-[11px] sm:text-xs md:text-sm font-bold font-heading text-amber-400 ${
+              isRightAligned ? 'justify-end' : 'justify-start'
+            }`}>
+              {!isRightAligned && <MousePointerClick size={16} className="animate-bounce" />}
+              <span>TAP KEYCARD TO ENTER STORE ↗</span>
+              {isRightAligned && <MousePointerClick size={16} className="animate-bounce" />}
             </div>
           </motion.div>
         </AnimatePresence>
       </div>
 
       {/* Bottom Carousel Indicator Cue */}
-      <div className="mb-4 flex items-center justify-between text-xs text-gray-400 font-heading tracking-widest uppercase pointer-events-auto">
-        <div className="flex items-center gap-2 text-[11px] font-semibold text-gray-300">
-          <MoveHorizontal size={16} className="text-amber-400 animate-pulse" />
-          <span>Scroll / Drag horizontally to cycle cards</span>
+      <div className="mb-2 sm:mb-4 flex items-center justify-between text-xs text-gray-400 font-heading tracking-widest uppercase pointer-events-auto">
+        <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] font-semibold text-gray-300">
+          <MoveHorizontal size={14} className="text-amber-400 animate-pulse" />
+          <span>Swipe or drag cards</span>
         </div>
 
         {/* Carousel Indicators */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           {PROJECTS.map((p, idx) => (
             <button
               key={p.id}
               onClick={() => onSelectIndex(idx)}
               aria-label={`Go to ${p.name}`}
-              className={`h-1.5 rounded-full transition-all ${
+              className={`h-1 sm:h-1.5 rounded-full transition-all ${
                 idx === activeIndex
-                  ? 'w-8 bg-amber-400'
-                  : 'w-2 bg-gray-700 hover:bg-gray-500'
+                  ? 'w-6 sm:w-8 bg-amber-400'
+                  : 'w-1.5 sm:w-2 bg-gray-700 hover:bg-gray-500'
               }`}
             />
           ))}

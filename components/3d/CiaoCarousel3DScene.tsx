@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useEffect, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment, Preload } from '@react-three/drei';
 import { PROJECTS } from '@/data/projects';
@@ -16,7 +16,6 @@ function CarouselController({
   activeIndex,
   onActiveChange,
 }: SceneProps) {
-  const [carouselOffset, setCarouselOffset] = useState(activeIndex);
   const offsetRef = useRef(activeIndex);
   const targetOffsetRef = useRef(activeIndex);
   const isDraggingRef = useRef(false);
@@ -29,31 +28,48 @@ function CarouselController({
     targetOffsetRef.current = activeIndex;
   }, [activeIndex]);
 
-  // Handle Drag & Touch physics with drag-vs-click separation
+  // Touch and mouse drag physics with mobile gestures
   useEffect(() => {
-    const handlePointerDown = (e: PointerEvent) => {
-      // Don't drag if clicking buttons or nav
+    const getClientX = (e: MouseEvent | TouchEvent): number => {
+      if ('touches' in e && e.touches.length > 0) {
+        return e.touches[0].clientX;
+      }
+      return (e as MouseEvent).clientX;
+    };
+
+    const getClientY = (e: MouseEvent | TouchEvent): number => {
+      if ('touches' in e && e.touches.length > 0) {
+        return e.touches[0].clientY;
+      }
+      return (e as MouseEvent).clientY;
+    };
+
+    const handlePointerDown = (e: MouseEvent | TouchEvent) => {
+      // Ignore clicks on buttons/nav
       if ((e.target as HTMLElement)?.closest('button, a')) return;
       isDraggingRef.current = true;
-      startXRef.current = e.clientX;
-      startYRef.current = e.clientY;
+      startXRef.current = getClientX(e);
+      startYRef.current = getClientY(e);
       dragStartOffsetRef.current = targetOffsetRef.current;
     };
 
-    const handlePointerMove = (e: PointerEvent) => {
+    const handlePointerMove = (e: MouseEvent | TouchEvent) => {
       if (!isDraggingRef.current) return;
-      const deltaX = e.clientX - startXRef.current;
-      const deltaY = e.clientY - startYRef.current;
+      const currentX = getClientX(e);
+      const currentY = getClientY(e);
+      const deltaX = currentX - startXRef.current;
+      const deltaY = currentY - startYRef.current;
 
-      // If user moved pointer more than 5px, mark as dragging gesture so click handler doesn't trigger site navigation
-      if (Math.hypot(deltaX, deltaY) > 5) {
+      // Mark dragging gesture to prevent accidental site opening
+      if (Math.hypot(deltaX, deltaY) > 6) {
         (window as any).__IS_CAROUSEL_DRAGGING__ = true;
       }
 
-      // Sensitivity scaling
-      const deltaOffset = -deltaX / 380;
+      // Responsive drag sensitivity scaling
+      const sensitivity = window.innerWidth < 768 ? 260 : 380;
+      const deltaOffset = -deltaX / sensitivity;
       let newTarget = dragStartOffsetRef.current + deltaOffset;
-      
+
       const maxIndex = PROJECTS.length - 1;
       targetOffsetRef.current = Math.max(0, Math.min(maxIndex, newTarget));
     };
@@ -62,12 +78,11 @@ function CarouselController({
       if (!isDraggingRef.current) return;
       isDraggingRef.current = false;
 
-      // Reset drag flag after short delay so click event resolves safely
       setTimeout(() => {
         (window as any).__IS_CAROUSEL_DRAGGING__ = false;
       }, 120);
 
-      // Snap to nearest integer index
+      // Snap to nearest card index
       const maxIndex = PROJECTS.length - 1;
       const snapped = Math.max(0, Math.min(maxIndex, Math.round(targetOffsetRef.current)));
       targetOffsetRef.current = snapped;
@@ -75,7 +90,6 @@ function CarouselController({
     };
 
     const handleWheel = (e: WheelEvent) => {
-      // Wheel horizontal cycling
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
         const delta = e.deltaX * 0.0015;
         targetOffsetRef.current = Math.max(
@@ -87,25 +101,33 @@ function CarouselController({
       }
     };
 
-    window.addEventListener('pointerdown', handlePointerDown);
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
+    // Attach mouse & touch listeners for desktop & mobile
+    window.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('mousemove', handlePointerMove);
+    window.addEventListener('mouseup', handlePointerUp);
+
+    window.addEventListener('touchstart', handlePointerDown, { passive: true });
+    window.addEventListener('touchmove', handlePointerMove, { passive: true });
+    window.addEventListener('touchend', handlePointerUp);
     window.addEventListener('wheel', handleWheel, { passive: true });
 
     return () => {
-      window.removeEventListener('pointerdown', handlePointerDown);
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('mousemove', handlePointerMove);
+      window.removeEventListener('mouseup', handlePointerUp);
+
+      window.removeEventListener('touchstart', handlePointerDown);
+      window.removeEventListener('touchmove', handlePointerMove);
+      window.removeEventListener('touchend', handlePointerUp);
       window.removeEventListener('wheel', handleWheel);
     };
   }, [onActiveChange]);
 
-  // Frame loop smoothly interpolates currentOffset -> targetOffset (inertia)
+  // Frame loop interpolates offsetRef directly in WebGL (Zero 60FPS React state lag)
   useFrame((_, delta) => {
     const diff = targetOffsetRef.current - offsetRef.current;
-    if (Math.abs(diff) > 0.001) {
-      offsetRef.current = THREE.MathUtils.lerp(offsetRef.current, targetOffsetRef.current, delta * 7);
-      setCarouselOffset(offsetRef.current);
+    if (Math.abs(diff) > 0.0005) {
+      offsetRef.current = THREE.MathUtils.lerp(offsetRef.current, targetOffsetRef.current, delta * 9);
 
       // Check if nearest integer index changed
       const nearest = Math.max(0, Math.min(PROJECTS.length - 1, Math.round(offsetRef.current)));
@@ -118,14 +140,14 @@ function CarouselController({
   return (
     <group position={[0, -0.2, 0]}>
       {PROJECTS.map((project, idx) => {
-        const isSelected = Math.round(carouselOffset) === idx;
+        const isSelected = activeIndex === idx;
         return (
           <CardModel
             key={project.id}
             project={project}
             index={idx}
             totalCards={PROJECTS.length}
-            carouselOffset={carouselOffset}
+            offsetRef={offsetRef}
             isSelected={isSelected}
             onSelect={() => {
               targetOffsetRef.current = idx;
@@ -152,21 +174,18 @@ export function CiaoCarousel3DScene({
   onActiveChange,
 }: SceneProps) {
   return (
-    <div className="w-full h-full relative cursor-grab active:cursor-grabbing">
+    <div className="w-full h-full relative cursor-grab active:cursor-grabbing touch-none select-none">
       <Canvas
-        shadows
-        camera={{ position: [0, 0, 7.2], fov: 42 }}
+        camera={{ position: [0, 0, 7.2], fov: 44 }}
+        dpr={[1, 2]} // High Performance DPI scaling for mobile
         gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       >
         <ambientLight intensity={0.9} />
         <directionalLight
           position={[5, 8, 6]}
-          intensity={2.2}
-          castShadow
-          shadow-mapSize-width={2048}
-          shadow-mapSize-height={2048}
+          intensity={2.0}
         />
-        <directionalLight position={[-5, -2, -4]} intensity={0.6} color="#94a3b8" />
+        <directionalLight position={[-5, -2, -4]} intensity={0.5} color="#94a3b8" />
 
         {/* Dynamic Studio Environment Reflections */}
         <Environment preset="city" />
