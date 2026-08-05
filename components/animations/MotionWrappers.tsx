@@ -96,3 +96,22 @@ export const ScaleOnHover: React.FC<MotionProps & { scale?: number }> = ({
     </motion.div>
   );
 };
+
+export const ScaleIn: React.FC<MotionProps> = ({
+  children,
+  className = "",
+  delay = 0,
+  duration = 0.5,
+}) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      whileInView={{ opacity: 1, scale: 1 }}
+      viewport={{ once: true, margin: "-50px" }}
+      transition={{ duration, delay, ease: [0.21, 0.47, 0.32, 0.98] }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+};
