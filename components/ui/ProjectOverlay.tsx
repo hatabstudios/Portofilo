@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { Project, PROJECTS } from '@/data/projects';
-import { ChevronLeft, ChevronRight, MoveHorizontal } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MousePointerClick, MoveHorizontal } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 
 interface OverlayProps {
   activeProject: Project;
@@ -23,7 +24,17 @@ export function ProjectOverlay({
       {/* Top Controls & Active Indicator */}
       <div className="mt-16 md:mt-20 flex items-center justify-between pointer-events-auto">
         <div className="flex items-center gap-3">
-          <span className="text-xs md:text-sm font-bold tracking-widest text-gray-300 uppercase font-heading">
+          <span
+            className="px-3 py-1 text-[10px] md:text-xs font-bold tracking-widest font-heading rounded-full uppercase border backdrop-blur-md"
+            style={{
+              borderColor: activeProject.accentColor,
+              color: activeProject.accentColor,
+              backgroundColor: 'rgba(15, 23, 42, 0.6)',
+            }}
+          >
+            {activeProject.badge}
+          </span>
+          <span className="text-[10px] md:text-xs font-semibold tracking-widest text-gray-400 uppercase font-heading">
             KEYCARD {String(activeIndex + 1).padStart(2, '0')} / {String(PROJECTS.length).padStart(2, '0')}
           </span>
         </div>
@@ -55,6 +66,43 @@ export function ProjectOverlay({
             <ChevronRight size={16} />
           </button>
         </div>
+      </div>
+
+      {/* Main Content Area (Positioned on the RIGHT side to leave 3D cards unblocked & clear) */}
+      <div className="my-auto w-full">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeProject.id}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            className="max-w-md ml-auto text-right pointer-events-none space-y-3 flex flex-col items-end"
+          >
+            <h2
+              className="text-5xl sm:text-7xl md:text-8xl font-black font-heading tracking-tight text-white uppercase drop-shadow-2xl leading-none text-right"
+              style={{
+                textShadow: `0 0 35px ${activeProject.glowColor}`,
+              }}
+            >
+              {activeProject.name}
+            </h2>
+
+            <p className="text-base sm:text-lg md:text-xl font-medium text-amber-200/90 tracking-wide font-heading text-right">
+              {activeProject.tagline}
+            </p>
+
+            <p className="text-xs sm:text-sm text-gray-300/80 leading-relaxed max-w-sm text-right">
+              {activeProject.description}
+            </p>
+
+            {/* Keycard Entry Cue */}
+            <div className="pt-3 flex items-center justify-end gap-2 text-xs sm:text-sm font-bold font-heading text-amber-400">
+              <span>CLICK / TAP THE 3D KEYCARD TO ENTER WEBPAGE ↗</span>
+              <MousePointerClick size={18} className="animate-bounce" />
+            </div>
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       {/* Bottom Carousel Indicator Cue */}

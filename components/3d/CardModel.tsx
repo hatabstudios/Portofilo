@@ -2,10 +2,9 @@
 
 import React, { useMemo, useRef, useState } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
-import { useFBX, Html } from '@react-three/drei';
+import { useFBX } from '@react-three/drei';
 import * as THREE from 'three';
 import { Project } from '@/data/projects';
-import { MousePointerClick } from 'lucide-react';
 
 interface CardModelProps {
   project: Project;
@@ -33,23 +32,19 @@ export function CardModel({
   // Load card's dedicated custom texture file from project.texturePath
   const dedicatedTexture = useLoader(THREE.TextureLoader, project.texturePath);
 
-  // Load PBR normal/roughness/metallic/ao maps for realistic lighting reflections
-  const pbrMaps = useLoader(THREE.TextureLoader, [
-    '/textures/Authentication_Card_Authentication_Card_No.png',
-    '/textures/Authentication_Card_Authentication_Card_Ro.png',
-    '/textures/Authentication_Card_Authentication_Card_Me.png',
-    '/textures/Authentication_Card_Authentication_Card_Am.png',
-  ]);
-
-  const [normalMap, roughnessMap, metalnessMap, aoMap] = pbrMaps;
+  // Load PBR normal map for 3D card edge bevels
+  const normalMap = useLoader(
+    THREE.TextureLoader,
+    '/textures/Authentication_Card_Authentication_Card_No.png'
+  );
 
   // Clone FBX mesh, stand vertical facing camera, & compute auto-scale
   const { clonedFbx, autoScale } = useMemo(() => {
     const clone = originalFbx.clone(true);
 
-    // Rotate FBX geometry so card stands vertical & text is right-side up facing camera
+    // Rotate FBX geometry so card stands vertical & texture artwork is right-side up
     clone.rotation.x = Math.PI / 2;
-    clone.rotation.z = Math.PI; // Right-side up orientation for texture text
+    clone.rotation.z = Math.PI; // Right-side up orientation for custom texture artwork
     clone.updateMatrixWorld(true);
 
     // Calculate bounding box in vertical orientation
@@ -62,14 +57,14 @@ export function CardModel({
     clone.position.y = -center.y;
     clone.position.z = -center.z;
 
-    // Standardize vertical height to 3.6 world units in 3D viewport
+    // Standardize vertical height to 3.8 world units in 3D viewport
     const maxDim = Math.max(size.x, size.y, size.z);
-    const scaleFactor = maxDim > 0 ? 3.6 / maxDim : 1.0;
+    const scaleFactor = maxDim > 0 ? 3.8 / maxDim : 1.0;
 
     return { clonedFbx: clone, autoScale: scaleFactor };
   }, [originalFbx]);
 
-  // Apply card's dedicated custom texture and PBR material maps
+  // Apply dedicated custom texture artwork in full color without raw gray steel drowning
   useMemo(() => {
     if (!clonedFbx || !dedicatedTexture) return;
 
@@ -77,21 +72,22 @@ export function CardModel({
     dedicatedTexture.center.set(0.5, 0.5);
     dedicatedTexture.needsUpdate = true;
 
+    if (normalMap) {
+      normalMap.needsUpdate = true;
+    }
+
     clonedFbx.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
 
+        // Clean material displaying custom artwork texture vibrantly with subtle metallic sheen & normal bevels
         const customMat = new THREE.MeshStandardMaterial({
           map: dedicatedTexture,
-          normalMap: normalMap,
-          normalScale: new THREE.Vector2(0.8, 0.8),
-          roughnessMap: roughnessMap,
-          roughness: isSelected ? 0.3 : 0.5,
-          metalnessMap: metalnessMap,
-          metalness: 0.85,
-          aoMap: aoMap,
-          aoMapIntensity: 1.0,
-          envMapIntensity: isSelected ? 1.8 : 1.0,
+          normalMap: normalMap || null,
+          normalScale: new THREE.Vector2(0.4, 0.4),
+          roughness: isSelected ? 0.25 : 0.45,
+          metalness: 0.12, // Subtle sheen so texture artwork pops brightly
+          envMapIntensity: isSelected ? 1.4 : 0.8,
         });
 
         mesh.material = customMat;
@@ -99,7 +95,7 @@ export function CardModel({
         mesh.receiveShadow = true;
       }
     });
-  }, [clonedFbx, dedicatedTexture, normalMap, roughnessMap, metalnessMap, aoMap, isSelected]);
+  }, [clonedFbx, dedicatedTexture, normalMap, isSelected]);
 
   // Frame loop for Ciao Energy carousel position math & physics bobbing
   useFrame((state, delta) => {
@@ -166,54 +162,6 @@ export function CardModel({
           distance={6}
         />
       )}
-
-      {/* 3D Local Text Container — Scoped 100% to this card's local 3D coordinate space (Zero Overlap / Zero Bleed) */}
-      <Html
-        position={[0, -2.2, 0.2]}
-        center
-        distanceFactor={7.5}
-        className="pointer-events-none select-none transition-opacity duration-300"
-        style={{
-          opacity: isSelected ? 1 : 0.45,
-        }}
-      >
-        <div className="w-80 text-center space-y-2 font-heading">
-          <span
-            className="inline-block px-3 py-1 text-[10px] md:text-xs font-bold tracking-widest rounded-full uppercase border backdrop-blur-md"
-            style={{
-              borderColor: project.accentColor,
-              color: project.accentColor,
-              backgroundColor: 'rgba(15, 23, 42, 0.75)',
-            }}
-          >
-            {project.badge}
-          </span>
-
-          <h2
-            className="text-4xl md:text-5xl font-black tracking-tight text-white uppercase drop-shadow-xl"
-            style={{
-              textShadow: `0 0 30px ${project.glowColor}`,
-            }}
-          >
-            {project.name}
-          </h2>
-
-          <p className="text-xs md:text-sm font-semibold text-amber-200/90 tracking-wide">
-            {project.tagline}
-          </p>
-
-          <p className="text-[11px] text-gray-300/80 leading-snug line-clamp-2 px-2">
-            {project.description}
-          </p>
-
-          {isSelected && (
-            <div className="pt-2 flex items-center justify-center gap-1.5 text-[11px] font-bold text-amber-400">
-              <MousePointerClick size={14} className="animate-bounce" />
-              <span>CLICK KEYCARD TO ENTER ↗</span>
-            </div>
-          )}
-        </div>
-      </Html>
     </group>
   );
 }
