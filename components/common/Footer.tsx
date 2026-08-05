@@ -1,9 +1,14 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { siteConfig } from "@/config/site";
 import { Dumbbell, Phone, Mail, MapPin, Clock, ArrowRight, Instagram, Facebook, Youtube, Twitter } from "lucide-react";
 
 export const Footer: React.FC = () => {
+  const pathname = usePathname();
+  if (pathname === "/") return null;
   return (
     <footer className="bg-zinc-950 border-t border-surface-border text-zinc-400 pt-16 pb-12 relative overflow-hidden">
       {/* Glow background accent */}

@@ -1,10 +1,12 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ExternalLink, Sparkles, Dumbbell, Globe, Layers } from "lucide-react";
 
 export const StudioBanner: React.FC = () => {
+  const pathname = usePathname();
+  if (pathname === "/") return null;
   return (
     <div className="bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 border-b border-primary/20 text-white text-xs py-2 px-4 sticky top-0 z-50 shadow-md">
       <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
