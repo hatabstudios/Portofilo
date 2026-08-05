@@ -20,7 +20,7 @@ export function ProjectOverlay({
 
   return (
     <div className="absolute inset-0 z-10 flex flex-col justify-between p-6 md:p-12 pointer-events-none select-none">
-      {/* Top Metadata Badge */}
+      {/* Top Metadata Badge & Carousel Navigation */}
       <div className="mt-16 md:mt-20 flex items-center justify-between pointer-events-auto">
         <div className="flex items-center gap-3">
           <span
@@ -67,11 +67,11 @@ export function ProjectOverlay({
         </div>
       </div>
 
-      {/* Main Content Area (Active Card Info) */}
-      <div className="my-auto max-w-xl pointer-events-none">
-        <div className="space-y-3">
+      {/* Main Content Area (Positioned on the RIGHT side to avoid overlapping 3D card) */}
+      <div className="my-auto max-w-lg ml-auto text-right pointer-events-none">
+        <div className="space-y-4 flex flex-col items-end">
           <h2
-            className="text-5xl sm:text-7xl md:text-8xl font-black font-heading tracking-tight text-white uppercase drop-shadow-2xl leading-none"
+            className="text-5xl sm:text-7xl md:text-8xl font-black font-heading tracking-tight text-white uppercase drop-shadow-2xl leading-none text-right"
             style={{
               textShadow: `0 0 40px ${activeProject.glowColor}`,
             }}
@@ -79,18 +79,18 @@ export function ProjectOverlay({
             {activeProject.name}
           </h2>
 
-          <p className="text-base sm:text-lg md:text-xl font-medium text-amber-200/90 tracking-wide font-heading">
+          <p className="text-base sm:text-lg md:text-xl font-medium text-amber-200/90 tracking-wide font-heading text-right">
             {activeProject.tagline}
           </p>
 
-          <p className="text-xs sm:text-sm text-gray-300/80 leading-relaxed max-w-md">
+          <p className="text-xs sm:text-sm text-gray-300/80 leading-relaxed max-w-md text-right">
             {activeProject.description}
           </p>
 
           {/* Keycard Entry Cue */}
-          <div className="pt-4 flex items-center gap-2 text-xs sm:text-sm font-bold font-heading text-amber-400">
+          <div className="pt-2 flex items-center justify-end gap-2 text-xs sm:text-sm font-bold font-heading text-amber-400">
+            <span>CLICK / TAP 3D KEYCARD TO ENTER WEBPAGE ↗</span>
             <MousePointerClick size={18} className="animate-bounce" />
-            <span>CLICK / TAP THE 3D KEYCARD TO ENTER WEBPAGE ↗</span>
           </div>
         </div>
       </div>

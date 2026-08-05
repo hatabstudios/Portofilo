@@ -11,7 +11,7 @@ export function Navbar() {
         className="group flex items-center gap-3 text-xs md:text-sm font-bold tracking-widest font-heading text-white uppercase hover:text-amber-400 transition-colors"
       >
         <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
-        <span>YAHIA <span className="text-gray-400 font-normal">/ PORTFOLIO</span></span>
+        <span>HATAB STUDIOS <span className="text-gray-400 font-normal">/ PORTFOLIO</span></span>
       </a>
 
       {/* Navigation Links */}

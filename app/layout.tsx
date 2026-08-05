@@ -15,11 +15,11 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "YAHIA — Web Developer & Frontend Engineer",
+  title: "HATAB STUDIOS — Web Developer & Frontend Engineer",
   description:
-    "Web Developer turning client designs, mockups, and specs into high-performance web applications.",
+    "HATAB STUDIOS — Turning client designs, mockups, and specs into high-performance web applications.",
   openGraph: {
-    title: "YAHIA — Web Developer & Frontend Engineer",
+    title: "HATAB STUDIOS — Web Developer & Frontend Engineer",
     description: "Turning client designs and specs into production code.",
     type: "website",
   },
