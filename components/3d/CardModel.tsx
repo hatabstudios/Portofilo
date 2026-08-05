@@ -29,6 +29,17 @@ export function CardModel({
   // Load FBX Model using R3F Drei helper
   const originalFbx = useFBX('/models/Authentication Card.fbx');
 
+  // Load PBR Texture maps from public/textures
+  const pbrTextures = useLoader(THREE.TextureLoader, [
+    '/textures/Authentication_Card_Authentication_Card_Ba.png',
+    '/textures/Authentication_Card_Authentication_Card_No.png',
+    '/textures/Authentication_Card_Authentication_Card_Ro.png',
+    '/textures/Authentication_Card_Authentication_Card_Me.png',
+    '/textures/Authentication_Card_Authentication_Card_Am.png',
+  ]);
+
+  const [baseMap, normalMap, roughnessMap, metalnessMap, aoMap] = pbrTextures;
+
   // Clone, rotate vertical facing camera, & center FBX group
   const { clonedFbx, autoScale } = useMemo(() => {
     const clone = originalFbx.clone(true);
@@ -54,18 +65,7 @@ export function CardModel({
     return { clonedFbx: clone, autoScale: scaleFactor };
   }, [originalFbx]);
 
-  // Load PBR Texture maps from public/textures
-  const pbrTextures = useLoader(THREE.TextureLoader, [
-    '/textures/Authentication_Card_Authentication_Card_Ba.png',
-    '/textures/Authentication_Card_Authentication_Card_No.png',
-    '/textures/Authentication_Card_Authentication_Card_Ro.png',
-    '/textures/Authentication_Card_Authentication_Card_Me.png',
-    '/textures/Authentication_Card_Authentication_Card_Am.png',
-  ]);
-
-  const [baseMap, normalMap, roughnessMap, metalnessMap, aoMap] = pbrTextures;
-
-  // Generate dynamic canvas overlay texture per brand
+  // Dynamic Texture Compositor: overlays project brand details onto the native PBR card map
   const brandCanvasTexture = useMemo(() => {
     if (typeof window === 'undefined') return null;
 
@@ -75,78 +75,62 @@ export function CardModel({
     const ctx = canvas.getContext('2d');
 
     if (ctx) {
-      // Dark base background
-      ctx.fillStyle = '#090d16';
-      ctx.fillRect(0, 0, 1024, 1024);
+      // Draw original high-res PBR base texture first
+      if (baseMap?.image) {
+        ctx.drawImage(baseMap.image, 0, 0, 1024, 1024);
+      } else {
+        ctx.fillStyle = '#0a0d14';
+        ctx.fillRect(0, 0, 1024, 1024);
+      }
 
-      // Accent subtle gradient fill
-      const grad = ctx.createLinearGradient(0, 0, 1024, 1024);
-      grad.addColorStop(0, '#0f172a');
-      grad.addColorStop(0.5, '#1e293b');
-      grad.addColorStop(1, '#020617');
-      ctx.fillStyle = grad;
+      // Accent color glow tint layer
+      ctx.fillStyle = project.accentColor;
+      ctx.globalAlpha = 0.22;
       ctx.fillRect(0, 0, 1024, 1024);
+      ctx.globalAlpha = 1.0;
 
-      // Dynamic accent foil border
+      // Outer accent foil trim
       ctx.strokeStyle = project.accentColor;
-      ctx.lineWidth = 28;
-      ctx.strokeRect(32, 32, 960, 960);
+      ctx.lineWidth = 24;
+      ctx.strokeRect(20, 20, 984, 984);
 
       // Inner subtle border
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-      ctx.lineWidth = 6;
-      ctx.strokeRect(60, 60, 904, 904);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(44, 44, 936, 936);
 
-      // Corner accent dots
+      // Corner accent blocks
       ctx.fillStyle = project.accentColor;
-      ctx.fillRect(80, 80, 24, 24);
-      ctx.fillRect(920, 80, 24, 24);
-      ctx.fillRect(80, 920, 24, 24);
-      ctx.fillRect(920, 920, 24, 24);
+      ctx.fillRect(52, 52, 28, 28);
+      ctx.fillRect(944, 52, 28, 28);
+      ctx.fillRect(52, 944, 28, 28);
+      ctx.fillRect(944, 944, 28, 28);
 
-      // Header Tagline / Badge
-      ctx.font = 'bold 36px sans-serif';
-      ctx.fillStyle = project.accentColor;
-      ctx.textAlign = 'left';
-      ctx.fillText(project.badge, 90, 140);
-
-      // Large Emblem Circle
-      ctx.beginPath();
-      ctx.arc(512, 460, 180, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-      ctx.fill();
-      ctx.lineWidth = 10;
-      ctx.strokeStyle = project.accentColor;
-      ctx.stroke();
-
-      // Emblem Text Logo
-      ctx.font = '900 130px sans-serif';
+      // Brand Title overlay in lower third
+      ctx.font = '900 72px sans-serif';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(project.emblemText, 512, 460);
+      ctx.shadowColor = project.accentColor;
+      ctx.shadowBlur = 20;
+      ctx.fillText(project.name, 512, 820);
+      ctx.shadowBlur = 0;
 
-      // Brand Title
-      ctx.font = '900 80px sans-serif';
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(project.name, 512, 720);
-
-      // Subtitle
-      ctx.font = 'bold 36px sans-serif';
+      // Project Badge / Subtitle
+      ctx.font = 'bold 32px sans-serif';
       ctx.fillStyle = project.accentColor;
-      ctx.fillText(project.subtitle.toUpperCase(), 512, 790);
+      ctx.fillText(project.subtitle.toUpperCase(), 512, 880);
 
-      // Direct Link CTA text
-      ctx.font = 'bold 30px sans-serif';
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-      ctx.fillText('CLICK KEYCARD TO ENTER STORE ↗', 512, 870);
+      // Tap cue
+      ctx.font = 'bold 24px sans-serif';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+      ctx.fillText('CLICK KEYCARD TO ENTER STORE ↗', 512, 940);
     }
 
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.needsUpdate = true;
     return tex;
-  }, [project]);
+  }, [project, baseMap]);
 
   // Apply materials to cloned FBX meshes
   useMemo(() => {
