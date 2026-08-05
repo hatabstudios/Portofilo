@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useMemo, useEffect, Suspense } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Float, Text, useGLTF, Stars } from "@react-three/drei";
+import { Float, Text, RoundedBox, Stars } from "@react-three/drei";
 import * as THREE from "three";
 
 export interface ProjectCarouselData {
@@ -37,17 +37,14 @@ export const CAROUSEL_PROJECTS: ProjectCarouselData[] = [
   },
 ];
 
-// Preload the Keycard GLTF Model from public/models/keycard/Keycard.gltf
-useGLTF.preload("/models/keycard/Keycard.gltf");
-
 interface CiaoCarouselSceneProps {
   activeIndex: number;
   setActiveIndex: (idx: number | ((prev: number) => number)) => void;
   onNavigate: (index: number) => void;
 }
 
-// 3D GLTF Keycard Model Instance
-const GLTFKeycardModelInstance: React.FC<{
+// Fail-safe 3D Keycard Mesh Component
+const KeycardMeshComponent: React.FC<{
   project: ProjectCarouselData;
   index: number;
   activeIndex: number;
@@ -55,48 +52,19 @@ const GLTFKeycardModelInstance: React.FC<{
 }> = ({ project, index, activeIndex, onSelect }) => {
   const groupRef = useRef<THREE.Group>(null);
   const [hovered, setHovered] = useState(false);
-
-  // Load GLTF Model from Assets / public/models/keycard
-  const { scene } = useGLTF("/models/keycard/Keycard.gltf");
-
-  // Clone scene for unique project accent emissive material
-  const clonedScene = useMemo(() => {
-    const cloned = scene.clone(true);
-    const themeColor = new THREE.Color(project.accentColor);
-
-    cloned.traverse((child) => {
-      if ((child as THREE.Mesh).isMesh) {
-        const mesh = child as THREE.Mesh;
-        if (mesh.material) {
-          const mat = (mesh.material as THREE.MeshStandardMaterial).clone();
-          mat.side = THREE.DoubleSide;
-          if (index === activeIndex) {
-            mat.emissive = themeColor;
-            mat.emissiveIntensity = 0.45;
-          } else {
-            mat.emissive = themeColor;
-            mat.emissiveIntensity = 0.08;
-          }
-          mesh.material = mat;
-        }
-      }
-    });
-    return cloned;
-  }, [scene, project.accentColor, index, activeIndex]);
-
   const isCenter = index === activeIndex;
 
-  // Target shallow arc positions
+  // Target coordinates in shallow 3D arc
   const targetX = (index - activeIndex) * 3.4;
   const targetY = isCenter ? 0.35 : 0.1;
   const targetZ = isCenter ? 0.4 : -0.8;
-  const targetScale = isCenter ? 0.55 : 0.38;
+  const targetScale = isCenter ? 1.35 : 0.92;
   const targetRotY = (index - activeIndex) * -0.28;
 
   useFrame((state, delta) => {
     if (!groupRef.current) return;
 
-    // Smooth lerp positioning
+    // Smooth carousel lerp positioning
     groupRef.current.position.x = THREE.MathUtils.lerp(groupRef.current.position.x, targetX, delta * 9);
     groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, targetY, delta * 9);
     groupRef.current.position.z = THREE.MathUtils.lerp(groupRef.current.position.z, targetZ, delta * 9);
@@ -124,12 +92,82 @@ const GLTFKeycardModelInstance: React.FC<{
       }}
       onClick={(e) => {
         e.stopPropagation();
-        // Clicking a card ONLY selects/focuses it (No accidental navigation!)
         onSelect();
       }}
     >
       <Float speed={isCenter ? 2 : 0} rotationIntensity={0.1} floatIntensity={isCenter ? 0.25 : 0}>
-        <primitive object={clonedScene} />
+        {/* Sleek Vertical 3D Keycard Body */}
+        <RoundedBox args={[1.7, 2.7, 0.08]} radius={0.1} smoothness={4}>
+          <meshPhysicalMaterial
+            color="#09090b"
+            emissive={project.accentColor}
+            emissiveIntensity={isCenter ? 0.45 : 0.08}
+            metalness={0.9}
+            roughness={0.15}
+            clearcoat={1.0}
+            clearcoatRoughness={0.08}
+            reflectivity={0.9}
+            iridescence={0.95}
+            iridescenceIOR={1.3}
+            side={THREE.DoubleSide}
+          />
+        </RoundedBox>
+
+        {/* Metallic Gold Security Chip */}
+        <mesh position={[-0.45, 0.85, 0.05]}>
+          <planeGeometry args={[0.38, 0.3]} />
+          <meshStandardMaterial
+            color="#f59e0b"
+            emissive="#d97706"
+            emissiveIntensity={0.4}
+            metalness={0.95}
+            roughness={0.1}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+
+        {/* Studio Emblem Monogram Text */}
+        <Text
+          position={[0.45, 0.85, 0.05]}
+          fontSize={0.14}
+          color="#ffffff"
+          anchorX="center"
+          anchorY="middle"
+          fontWeight="bold"
+        >
+          HS
+        </Text>
+
+        {/* Holographic Security Strip */}
+        <mesh position={[0, -0.15, 0.05]}>
+          <planeGeometry args={[1.5, 1.4]} />
+          <meshStandardMaterial
+            color={project.accentColor}
+            emissive={project.accentColor}
+            emissiveIntensity={isCenter ? 0.85 : 0.2}
+            metalness={0.95}
+            roughness={0.05}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+
+        {/* Card Title Label Text */}
+        <Text
+          position={[0, -1.0, 0.05]}
+          fontSize={0.11}
+          color="#ffffff"
+          anchorX="center"
+          anchorY="middle"
+          letterSpacing={0.05}
+        >
+          {project.title}
+        </Text>
+
+        {/* Inner Border Glow Line */}
+        <lineSegments position={[0, 0, 0.045]}>
+          <edgesGeometry args={[new THREE.PlaneGeometry(1.6, 2.6)]} />
+          <lineBasicMaterial color={project.accentColor} linewidth={2} />
+        </lineSegments>
       </Float>
     </group>
   );
@@ -218,7 +256,7 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
     setActiveIndex((prev) => (prev + 1) % CAROUSEL_PROJECTS.length);
   };
 
-  // Keyboard Arrow Navigation (Left / Right Arrows)
+  // Keyboard Arrow Navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
@@ -299,9 +337,9 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
         </group>
       </group>
 
-      {/* MAIN CAROUSEL STAGE — 3 REAL GLTF KEYCARDS */}
+      {/* MAIN CAROUSEL STAGE — 3 KEYCARDS */}
       {CAROUSEL_PROJECTS.map((project, idx) => (
-        <GLTFKeycardModelInstance
+        <KeycardMeshComponent
           key={project.id}
           project={project}
           index={idx}
@@ -369,7 +407,7 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
         </mesh>
       </group>
 
-      {/* BELOW CENTER CARD — PROJECT TITLE & EXPLICIT ENTER BUTTON (No accidental clicks!) */}
+      {/* BELOW CENTER CARD — PROJECT TITLE & EXPLICIT ENTER BUTTON */}
       <group position={[0, -1.5, 0.4]}>
         <Text
           position={[0, 0.15, 0.06]}

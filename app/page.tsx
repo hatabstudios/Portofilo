@@ -1,8 +1,39 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Component, ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { CAROUSEL_PROJECTS } from "@/components/hub/CiaoCarousel3DScene";
+
+interface ErrorBoundaryProps {
+  children: ReactNode;
+  fallback: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+}
+
+class HubErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error) {
+    console.error("Hub 3D Scene Error Caught:", error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
 
 // Dynamic import of 3D Ciao Energy Style GLTF R3F Canvas without SSR
 const CiaoCarousel3DScene = dynamic(
@@ -45,35 +76,41 @@ export default function MasterHubPage() {
     }
   };
 
+  const HTMLFallbackUI = (
+    <div className="w-full h-screen bg-zinc-950 text-white p-8 flex flex-col justify-center items-center space-y-6">
+      <h1 className="text-3xl font-black font-heading tracking-widest text-white">
+        HATAB STUDIOS HUB
+      </h1>
+      <p className="text-xs text-zinc-400 font-mono">
+        // SELECT A LIVE PLATFORM TO ACCESS
+      </p>
+      <div className="flex flex-col gap-4 w-full max-w-md">
+        {CAROUSEL_PROJECTS.map((panel, idx) => (
+          <button
+            key={panel.id}
+            onClick={() => handleNavigate(idx)}
+            className="p-5 bg-zinc-900 border border-zinc-800 rounded-xl text-left hover:border-primary font-mono text-xs font-bold text-white uppercase flex items-center justify-between transition-all hover:bg-zinc-800"
+          >
+            <span>{panel.title}</span>
+            <span style={{ color: panel.accentColor }}>ENTER ➔</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <div className="w-full h-screen relative bg-zinc-950">
       {webglSupported ? (
-        <CiaoCarousel3DScene
-          activeIndex={activeIndex}
-          setActiveIndex={setActiveIndex}
-          onNavigate={handleNavigate}
-        />
+        <HubErrorBoundary fallback={HTMLFallbackUI}>
+          <CiaoCarousel3DScene
+            activeIndex={activeIndex}
+            setActiveIndex={setActiveIndex}
+            onNavigate={handleNavigate}
+          />
+        </HubErrorBoundary>
       ) : (
-        /* No-WebGL HTML Fallback */
-        <div className="w-full h-screen bg-zinc-950 text-white p-8 flex flex-col justify-center items-center space-y-6">
-          <h1 className="text-2xl font-black font-heading tracking-widest text-primary">
-            HATAB STUDIOS HUB
-          </h1>
-          <p className="text-xs text-zinc-400 font-mono">
-            // SELECT PROJECT TO ACCESS
-          </p>
-          <div className="flex flex-col gap-4 w-full max-w-md">
-            {CAROUSEL_PROJECTS.map((panel, idx) => (
-              <button
-                key={panel.id}
-                onClick={() => handleNavigate(idx)}
-                className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl text-left hover:border-primary font-mono text-xs font-bold text-white uppercase"
-              >
-                {panel.title} ➔
-              </button>
-            ))}
-          </div>
-        </div>
+        HTMLFallbackUI
       )}
     </div>
   );
