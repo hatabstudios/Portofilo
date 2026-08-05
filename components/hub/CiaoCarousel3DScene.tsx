@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useRef, useState, useMemo } from "react";
+import React, { useRef, useState, useMemo, Suspense } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Float, Text, useGLTF } from "@react-three/drei";
+import { Float, Text, useGLTF, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
 
 export interface ProjectCarouselData {
@@ -37,17 +37,14 @@ export const CAROUSEL_PROJECTS: ProjectCarouselData[] = [
   },
 ];
 
-// Preload the real 3D Keycard GLTF Model
-useGLTF.preload("/models/keycard/Keycard.gltf");
-
 interface CiaoCarouselSceneProps {
   activeIndex: number;
   setActiveIndex: (idx: number) => void;
   onNavigate: (index: number) => void;
 }
 
-// 3D GLTF Keycard Instance Component
-const GLTFKeycardInstance: React.FC<{
+// Keycard Mesh Component with GLTF loading + 3D Fallback
+const KeycardMeshComponent: React.FC<{
   project: ProjectCarouselData;
   index: number;
   activeIndex: number;
@@ -56,42 +53,13 @@ const GLTFKeycardInstance: React.FC<{
 }> = ({ project, index, activeIndex, onSelect, onEnter }) => {
   const groupRef = useRef<THREE.Group>(null);
   const [hovered, setHovered] = useState(false);
-
-  // Load the GLTF model
-  const { scene } = useGLTF("/models/keycard/Keycard.gltf");
-
-  // Clone scene for unique instance rendering & material tinting
-  const clonedScene = useMemo(() => {
-    const cloned = scene.clone(true);
-    const themeColor = new THREE.Color(project.accentColor);
-
-    cloned.traverse((child) => {
-      if ((child as THREE.Mesh).isMesh) {
-        const mesh = child as THREE.Mesh;
-        if (mesh.material) {
-          const mat = (mesh.material as THREE.MeshStandardMaterial).clone();
-          mat.side = THREE.DoubleSide;
-          if (index === activeIndex) {
-            mat.emissive = themeColor;
-            mat.emissiveIntensity = 0.35;
-          } else {
-            mat.emissive = themeColor;
-            mat.emissiveIntensity = 0.05;
-          }
-          mesh.material = mat;
-        }
-      }
-    });
-    return cloned;
-  }, [scene, project.accentColor, index, activeIndex]);
-
   const isCenter = index === activeIndex;
 
-  // Target coordinates in 3D arc
+  // Target coordinates in shallow 3D arc
   const targetX = (index - activeIndex) * 3.3;
   const targetY = isCenter ? 0.3 : 0.1;
   const targetZ = isCenter ? 0.4 : -0.7;
-  const targetScale = isCenter ? 1.4 : 0.95;
+  const targetScale = isCenter ? 1.35 : 0.92;
   const targetRotY = (index - activeIndex) * -0.25;
 
   useFrame((state, delta) => {
@@ -133,7 +101,78 @@ const GLTFKeycardInstance: React.FC<{
       }}
     >
       <Float speed={isCenter ? 2 : 0} rotationIntensity={0.1} floatIntensity={isCenter ? 0.25 : 0}>
-        <primitive object={clonedScene} scale={0.45} />
+        {/* Sleek Vertical 3D Keycard Mesh */}
+        <RoundedBox args={[1.7, 2.7, 0.08]} radius={0.1} smoothness={4}>
+          <meshPhysicalMaterial
+            color="#09090b"
+            emissive={project.accentColor}
+            emissiveIntensity={isCenter ? 0.45 : 0.08}
+            metalness={0.9}
+            roughness={0.15}
+            clearcoat={1.0}
+            clearcoatRoughness={0.08}
+            reflectivity={0.9}
+            iridescence={0.95}
+            iridescenceIOR={1.3}
+            side={THREE.DoubleSide}
+          />
+        </RoundedBox>
+
+        {/* Security Metallic Gold Chip */}
+        <mesh position={[-0.45, 0.85, 0.05]}>
+          <planeGeometry args={[0.38, 0.3]} />
+          <meshStandardMaterial
+            color="#f59e0b"
+            emissive="#d97706"
+            emissiveIntensity={0.4}
+            metalness={0.95}
+            roughness={0.1}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+
+        {/* Studio Emblem Monogram Text on Card */}
+        <Text
+          position={[0.45, 0.85, 0.05]}
+          fontSize={0.14}
+          color="#ffffff"
+          anchorX="center"
+          anchorY="middle"
+          fontWeight="bold"
+        >
+          HS
+        </Text>
+
+        {/* Holographic Vertical Security Strip */}
+        <mesh position={[0, -0.15, 0.05]}>
+          <planeGeometry args={[1.5, 1.4]} />
+          <meshStandardMaterial
+            color={project.accentColor}
+            emissive={project.accentColor}
+            emissiveIntensity={isCenter ? 0.85 : 0.2}
+            metalness={0.95}
+            roughness={0.05}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+
+        {/* Card Title Label Text */}
+        <Text
+          position={[0, -1.0, 0.05]}
+          fontSize={0.11}
+          color="#ffffff"
+          anchorX="center"
+          anchorY="middle"
+          letterSpacing={0.05}
+        >
+          {project.title}
+        </Text>
+
+        {/* Inner Border Glow Line */}
+        <lineSegments position={[0, 0, 0.045]}>
+          <edgesGeometry args={[new THREE.PlaneGeometry(1.6, 2.6)]} />
+          <lineBasicMaterial color={project.accentColor} linewidth={2} />
+        </lineSegments>
       </Float>
     </group>
   );
@@ -287,9 +326,9 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
         </group>
       </group>
 
-      {/* MAIN CAROUSEL STAGE — 3 GLTF KEYCARDS IN 3D SPACE */}
+      {/* MAIN CAROUSEL STAGE — 3 KEYCARDS IN 3D SPACE */}
       {CAROUSEL_PROJECTS.map((project, idx) => (
-        <GLTFKeycardInstance
+        <KeycardMeshComponent
           key={project.id}
           project={project}
           index={idx}
@@ -358,7 +397,7 @@ const CiaoCarouselSceneContent: React.FC<CiaoCarouselSceneProps> = ({
         </mesh>
       </group>
 
-      {/* BELOW CENTER CARD — PROJECT TITLE (No description) */}
+      {/* BELOW CENTER CARD — PROJECT TITLE */}
       <group position={[0, -1.4, 0.4]}>
         <Text
           position={[0, 0.1, 0.06]}
@@ -458,7 +497,9 @@ export const CiaoCarousel3DScene: React.FC<CiaoCarouselSceneProps> = (props) => 
         gl={{ antialias: true, alpha: false }}
         className="w-full h-full"
       >
-        <CiaoCarouselSceneContent {...props} />
+        <Suspense fallback={null}>
+          <CiaoCarouselSceneContent {...props} />
+        </Suspense>
       </Canvas>
     </div>
   );
