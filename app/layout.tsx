@@ -1,39 +1,42 @@
 import type { Metadata } from "next";
-import { siteConfig } from "@/config/site";
-import { StudioBanner } from "@/components/common/StudioBanner";
-import { Navbar } from "@/components/common/Navbar";
-import { Footer } from "@/components/common/Footer";
+import { Space_Grotesk, Inter } from "next/font/google";
 import "./globals.css";
 
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+});
+
 export const metadata: Metadata = {
-  title: {
-    default: "Hatab Studios | Digital Web Portfolio",
-    template: "%s | Hatab Studios",
-  },
-  description: "Hatab Studios Portfolio - Explore featured digital experiences and web platforms.",
-  keywords: ["Hatab Studios", "Web Portfolio", "Gym Template", "Aasifaa", "Majarrah", "Vercel Apps"],
-  authors: [{ name: "Hatab Studios" }],
+  title: "YAHIA — Web Developer & Frontend Engineer",
+  description:
+    "Web Developer turning client designs, mockups, and specs into high-performance web applications.",
   openGraph: {
-    title: "Hatab Studios | Digital Web Portfolio",
-    description: "Explore featured digital experiences and web platforms built by Hatab Studios.",
-    url: siteConfig.domain,
-    siteName: "Hatab Studios",
+    title: "YAHIA — Web Developer & Frontend Engineer",
+    description: "Turning client designs and specs into production code.",
     type: "website",
   },
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en" className="dark scroll-smooth">
-      <body className="min-h-screen bg-background text-foreground antialiased flex flex-col selection:bg-primary selection:text-white">
-        <StudioBanner />
-        <Navbar />
-        <main className="flex-1">{children}</main>
-        <Footer />
+    <html
+      lang="en"
+      className={`${spaceGrotesk.variable} ${inter.variable} h-full antialiased dark`}
+    >
+      <body className="min-h-full flex flex-col bg-gray-950 text-gray-100 selection:bg-amber-500/30 selection:text-amber-200">
+        {children}
       </body>
     </html>
   );
