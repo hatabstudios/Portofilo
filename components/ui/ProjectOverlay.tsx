@@ -22,15 +22,15 @@ export function ProjectOverlay({
 
   return (
     <div className="absolute inset-0 z-10 flex flex-col justify-between p-4 sm:p-6 md:p-12 pointer-events-none select-none">
-      {/* Top Controls & Active Indicator */}
-      <div className="mt-14 sm:mt-16 md:mt-20 flex items-center justify-between pointer-events-auto">
+      {/* Top Controls & Active Indicator (Positioned cleanly below header on mobile) */}
+      <div className="mt-16 sm:mt-20 md:mt-24 flex items-center justify-between pointer-events-auto">
         <div className="flex items-center gap-2 sm:gap-3">
           <span
             className="px-2.5 py-1 text-[9px] sm:text-[10px] md:text-xs font-bold tracking-widest font-heading rounded-full uppercase border backdrop-blur-md"
             style={{
               borderColor: activeProject.accentColor,
               color: activeProject.accentColor,
-              backgroundColor: 'rgba(15, 23, 42, 0.75)',
+              backgroundColor: 'rgba(15, 23, 42, 0.8)',
             }}
           >
             {activeProject.badge}
@@ -49,7 +49,7 @@ export function ProjectOverlay({
             className={`p-2 sm:p-2.5 rounded-full border transition-all ${
               isFirst
                 ? 'border-gray-800 text-gray-600 cursor-not-allowed'
-                : 'border-gray-700 bg-gray-900/70 text-white hover:border-white hover:bg-gray-800'
+                : 'border-gray-700 bg-gray-900/80 text-white hover:border-white hover:bg-gray-800'
             }`}
           >
             <ChevronLeft size={16} />
@@ -61,7 +61,7 @@ export function ProjectOverlay({
             className={`p-2 sm:p-2.5 rounded-full border transition-all ${
               isLast
                 ? 'border-gray-800 text-gray-600 cursor-not-allowed'
-                : 'border-gray-700 bg-gray-900/70 text-white hover:border-white hover:bg-gray-800'
+                : 'border-gray-700 bg-gray-900/80 text-white hover:border-white hover:bg-gray-800'
             }`}
           >
             <ChevronRight size={16} />
@@ -69,18 +69,20 @@ export function ProjectOverlay({
         </div>
       </div>
 
-      {/* Main Content Area (Mobile Responsive Layout) */}
+      {/* Main Content Area: On mobile, text is rendered in a clean glass box below/above the 3D card. On desktop, text is aligned left or right */}
       <div className="my-auto w-full">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeProject.id}
-            initial={{ opacity: 0, x: isRightAligned ? 20 : -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: isRightAligned ? -20 : 20 }}
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
-            className={`max-w-xs sm:max-w-sm md:max-w-md pointer-events-none space-y-2 sm:space-y-3 flex flex-col ${
-              isRightAligned ? 'ml-auto text-right items-end' : 'mr-auto text-left items-start'
-            }`}
+            className={`pointer-events-none p-4 sm:p-6 rounded-2xl bg-gray-950/80 md:bg-transparent backdrop-blur-lg md:backdrop-blur-none border border-gray-800/80 md:border-none shadow-2xl md:shadow-none w-full max-w-sm sm:max-w-md md:max-w-md ${
+              isRightAligned
+                ? 'mx-auto md:ml-auto md:mr-0 text-center md:text-right items-center md:items-end'
+                : 'mx-auto md:mr-auto md:ml-0 text-center md:text-left items-center md:items-start'
+            } flex flex-col space-y-2.5 sm:space-y-3`}
           >
             <h2
               className="text-4xl sm:text-6xl md:text-8xl font-black font-heading tracking-tight text-white uppercase drop-shadow-2xl leading-none"
@@ -100,12 +102,9 @@ export function ProjectOverlay({
             </p>
 
             {/* Keycard Entry Cue */}
-            <div className={`pt-2 flex items-center gap-2 text-[11px] sm:text-xs md:text-sm font-bold font-heading text-amber-400 ${
-              isRightAligned ? 'justify-end' : 'justify-start'
-            }`}>
-              {!isRightAligned && <MousePointerClick size={16} className="animate-bounce" />}
+            <div className="pt-2 flex items-center justify-center md:justify-start gap-2 text-[11px] sm:text-xs md:text-sm font-bold font-heading text-amber-400">
+              <MousePointerClick size={16} className="animate-bounce" />
               <span>TAP KEYCARD TO ENTER STORE ↗</span>
-              {isRightAligned && <MousePointerClick size={16} className="animate-bounce" />}
             </div>
           </motion.div>
         </AnimatePresence>

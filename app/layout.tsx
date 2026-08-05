@@ -15,12 +15,11 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "HATAB STUDIOS — Web Developer & Frontend Engineer",
-  description:
-    "HATAB STUDIOS — Turning client designs, mockups, and specs into high-performance web applications.",
+  title: "HatabStudios Portfolio",
+  description: "HatabStudios Portfolio",
   openGraph: {
-    title: "HATAB STUDIOS — Web Developer & Frontend Engineer",
-    description: "Turning client designs and specs into production code.",
+    title: "HatabStudios Portfolio",
+    description: "HatabStudios Portfolio",
     type: "website",
   },
 };
@@ -35,7 +34,7 @@ export default function RootLayout({
       lang="en"
       className={`${spaceGrotesk.variable} ${inter.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full flex flex-col bg-gray-950 text-gray-100 selection:bg-amber-500/30 selection:text-amber-200">
+      <body className="min-h-full flex flex-col bg-gray-950 text-gray-100 selection:bg-amber-500/30 selection:text-amber-200 overflow-x-hidden">
         {children}
       </body>
     </html>
