@@ -34,7 +34,7 @@ export const PROJECTS: Project[] = [
     emblemText: 'MJ',
     bgGradient:
       'radial-gradient(ellipse at center, rgba(180, 83, 9, 0.3) 0%, rgba(17, 24, 39, 0.95) 65%, #030712 100%)',
-    texturePath: '/textures/MajarrahKeycardTexture.png',
+    texturePath: '/textures/MajarahSecretKeycardTexture.jpg',
     align: 'left',
     backgroundVideo: '',
   },
@@ -52,7 +52,7 @@ export const PROJECTS: Project[] = [
     emblemText: 'AF',
     bgGradient:
       'radial-gradient(ellipse at center, rgba(67, 56, 202, 0.3) 0%, rgba(15, 23, 42, 0.95) 65%, #030712 100%)',
-    texturePath: '/textures/AasifaKeycardTexture.png',
+    texturePath: '/textures/AasifaSecretkeycardTexture.jpg',
     align: 'right',
     backgroundVideo: '',
   },
