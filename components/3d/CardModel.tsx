@@ -42,9 +42,9 @@ export function CardModel({
   const { clonedFbx, autoScale } = useMemo(() => {
     const clone = originalFbx.clone(true);
 
-    // Rotate FBX geometry so card stands upright & texture artwork is right-side up & forward-facing
-    clone.rotation.x = -Math.PI / 2;
-    clone.rotation.z = 0;
+    // Rotate FBX geometry so card stands upright & front texture artwork is forward-facing & right-side up
+    clone.rotation.x = Math.PI / 2;
+    clone.rotation.z = Math.PI;
     clone.updateMatrixWorld(true);
 
     // Calculate bounding box in vertical orientation
