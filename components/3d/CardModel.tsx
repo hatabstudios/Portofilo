@@ -86,7 +86,7 @@ export function CardModel({
 
       // 2. Add signature brand accent color tint overlay
       ctx.fillStyle = project.accentColor;
-      ctx.globalAlpha = 0.16;
+      ctx.globalAlpha = 0.12;
       ctx.fillRect(0, 0, 1024, 1024);
       ctx.globalAlpha = 1.0;
 
@@ -95,21 +95,6 @@ export function CardModel({
       ctx.lineWidth = 14;
       ctx.strokeRect(10, 10, 492, 1004);
       ctx.strokeRect(522, 10, 492, 1004);
-
-      // 4. Render bold Brand Title ("MAJARRAH" / "AASIFA") & Badge on front UV face
-      ctx.save();
-      ctx.font = '900 68px sans-serif';
-      ctx.fillStyle = '#ffffff';
-      ctx.textAlign = 'center';
-      ctx.shadowColor = project.accentColor;
-      ctx.shadowBlur = 24;
-      ctx.fillText(project.name, 256, 750);
-      ctx.shadowBlur = 0;
-
-      ctx.font = 'bold 26px sans-serif';
-      ctx.fillStyle = project.accentColor;
-      ctx.fillText(project.badge, 256, 810);
-      ctx.restore();
     }
 
     const tex = new THREE.CanvasTexture(canvas);
