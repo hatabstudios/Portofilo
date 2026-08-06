@@ -10,11 +10,13 @@ import * as THREE from 'three';
 interface SceneProps {
   activeIndex: number;
   onActiveChange: (index: number) => void;
+  containerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 function CarouselController({
   activeIndex,
   onActiveChange,
+  containerRef,
 }: SceneProps) {
   const offsetRef = useRef(activeIndex);
   const targetOffsetRef = useRef(activeIndex);
@@ -28,9 +30,12 @@ function CarouselController({
     targetOffsetRef.current = activeIndex;
   }, [activeIndex]);
 
-  // Touch and mouse drag physics with smooth mobile gestures & velocity momentum
+  // Touch and mouse drag physics with smooth mobile gestures
   useEffect(() => {
-    let isHorizontalSwipe: boolean | null = null; // null = undecided, true = horizontal, false = vertical
+    const container = containerRef?.current;
+    if (!container) return;
+
+    let isHorizontalSwipe: boolean | null = null;
 
     const getClientX = (e: MouseEvent | TouchEvent): number => {
       if ('touches' in e && e.touches.length > 0) {
@@ -47,8 +52,8 @@ function CarouselController({
     };
 
     const handlePointerDown = (e: MouseEvent | TouchEvent) => {
-      // Ignore clicks on buttons/nav
-      if ((e.target as HTMLElement)?.closest('button, a')) return;
+      // Ignore clicks on buttons/nav/links
+      if ((e.target as HTMLElement)?.closest('button, a, nav')) return;
       isDraggingRef.current = true;
       isHorizontalSwipe = null;
       startXRef.current = getClientX(e);
@@ -64,32 +69,32 @@ function CarouselController({
       const deltaY = currentY - startYRef.current;
 
       // Determine swipe direction on first significant movement
-      if (isHorizontalSwipe === null && Math.hypot(deltaX, deltaY) > 4) {
-        isHorizontalSwipe = Math.abs(deltaX) > Math.abs(deltaY);
+      if (isHorizontalSwipe === null && Math.hypot(deltaX, deltaY) > 6) {
+        isHorizontalSwipe = Math.abs(deltaX) > Math.abs(deltaY) * 1.2;
       }
 
-      // If vertical scroll, release the drag
+      // If vertical scroll intent, release drag entirely so page scrolls normally
       if (isHorizontalSwipe === false) {
         isDraggingRef.current = false;
         return;
       }
 
-      // Prevent page scroll on horizontal swipe (touch only)
+      // Only preventDefault on confirmed horizontal swipe (touch)
       if (isHorizontalSwipe && 'touches' in e && e.cancelable) {
         e.preventDefault();
       }
 
-      // Mark dragging gesture to prevent accidental card click
-      if (Math.abs(deltaX) > 3) {
+      // Mark as dragging to prevent accidental card click
+      if (Math.abs(deltaX) > 4) {
         (window as any).__IS_CAROUSEL_DRAGGING__ = true;
       }
 
-      // High sensitivity drag — lower divisor = more responsive
+      // High sensitivity drag
       const sensitivity = window.innerWidth < 768 ? 140 : 280;
       const deltaOffset = -deltaX / sensitivity;
       let newTarget = dragStartOffsetRef.current + deltaOffset;
 
-      // Clamp with soft elastic overshoot
+      // Elastic overshoot at boundaries
       const maxIndex = PROJECTS.length - 1;
       if (newTarget < 0) newTarget *= 0.25;
       if (newTarget > maxIndex) newTarget = maxIndex + (newTarget - maxIndex) * 0.25;
@@ -125,27 +130,27 @@ function CarouselController({
       }
     };
 
-    // Attach mouse & touch listeners for desktop & mobile
-    window.addEventListener('mousedown', handlePointerDown);
+    // Scope listeners to the carousel container only (not window)
+    container.addEventListener('mousedown', handlePointerDown);
     window.addEventListener('mousemove', handlePointerMove);
     window.addEventListener('mouseup', handlePointerUp);
 
-    window.addEventListener('touchstart', handlePointerDown, { passive: true });
-    window.addEventListener('touchmove', handlePointerMove, { passive: false });
-    window.addEventListener('touchend', handlePointerUp);
-    window.addEventListener('wheel', handleWheel, { passive: true });
+    container.addEventListener('touchstart', handlePointerDown, { passive: true });
+    container.addEventListener('touchmove', handlePointerMove, { passive: false });
+    container.addEventListener('touchend', handlePointerUp);
+    container.addEventListener('wheel', handleWheel, { passive: true });
 
     return () => {
-      window.removeEventListener('mousedown', handlePointerDown);
+      container.removeEventListener('mousedown', handlePointerDown);
       window.removeEventListener('mousemove', handlePointerMove);
       window.removeEventListener('mouseup', handlePointerUp);
 
-      window.removeEventListener('touchstart', handlePointerDown);
-      window.removeEventListener('touchmove', handlePointerMove);
-      window.removeEventListener('touchend', handlePointerUp);
-      window.removeEventListener('wheel', handleWheel);
+      container.removeEventListener('touchstart', handlePointerDown);
+      container.removeEventListener('touchmove', handlePointerMove);
+      container.removeEventListener('touchend', handlePointerUp);
+      container.removeEventListener('wheel', handleWheel);
     };
-  }, [onActiveChange]);
+  }, [onActiveChange, containerRef]);
 
   // Frame loop interpolates offsetRef directly in WebGL (Zero 60FPS React state lag)
   useFrame((_, delta) => {
@@ -197,8 +202,10 @@ export function CiaoCarousel3DScene({
   activeIndex,
   onActiveChange,
 }: SceneProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
   return (
-    <div className="w-full h-full relative cursor-grab active:cursor-grabbing touch-none select-none">
+    <div ref={containerRef} className="w-full h-full relative cursor-grab active:cursor-grabbing select-none">
       <Canvas
         camera={{ position: [0, 0, 7.2], fov: 44 }}
         dpr={[1, 2]} // High Performance DPI scaling for mobile
@@ -215,7 +222,7 @@ export function CiaoCarousel3DScene({
         <Environment preset="city" />
 
         <Suspense fallback={<LoaderFallback />}>
-          <CarouselController activeIndex={activeIndex} onActiveChange={onActiveChange} />
+          <CarouselController activeIndex={activeIndex} onActiveChange={onActiveChange} containerRef={containerRef} />
           <Preload all />
         </Suspense>
       </Canvas>
