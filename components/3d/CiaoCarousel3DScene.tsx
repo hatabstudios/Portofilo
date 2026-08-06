@@ -28,8 +28,10 @@ function CarouselController({
     targetOffsetRef.current = activeIndex;
   }, [activeIndex]);
 
-  // Touch and mouse drag physics with mobile gestures
+  // Touch and mouse drag physics with smooth mobile gestures & velocity momentum
   useEffect(() => {
+    let isHorizontalSwipe: boolean | null = null; // null = undecided, true = horizontal, false = vertical
+
     const getClientX = (e: MouseEvent | TouchEvent): number => {
       if ('touches' in e && e.touches.length > 0) {
         return e.touches[0].clientX;
@@ -48,6 +50,7 @@ function CarouselController({
       // Ignore clicks on buttons/nav
       if ((e.target as HTMLElement)?.closest('button, a')) return;
       isDraggingRef.current = true;
+      isHorizontalSwipe = null;
       startXRef.current = getClientX(e);
       startYRef.current = getClientY(e);
       dragStartOffsetRef.current = targetOffsetRef.current;
@@ -60,27 +63,48 @@ function CarouselController({
       const deltaX = currentX - startXRef.current;
       const deltaY = currentY - startYRef.current;
 
-      // Mark dragging gesture to prevent accidental site opening
-      if (Math.hypot(deltaX, deltaY) > 6) {
+      // Determine swipe direction on first significant movement
+      if (isHorizontalSwipe === null && Math.hypot(deltaX, deltaY) > 4) {
+        isHorizontalSwipe = Math.abs(deltaX) > Math.abs(deltaY);
+      }
+
+      // If vertical scroll, release the drag
+      if (isHorizontalSwipe === false) {
+        isDraggingRef.current = false;
+        return;
+      }
+
+      // Prevent page scroll on horizontal swipe (touch only)
+      if (isHorizontalSwipe && 'touches' in e && e.cancelable) {
+        e.preventDefault();
+      }
+
+      // Mark dragging gesture to prevent accidental card click
+      if (Math.abs(deltaX) > 3) {
         (window as any).__IS_CAROUSEL_DRAGGING__ = true;
       }
 
-      // Responsive drag sensitivity scaling
-      const sensitivity = window.innerWidth < 768 ? 260 : 380;
+      // High sensitivity drag — lower divisor = more responsive
+      const sensitivity = window.innerWidth < 768 ? 140 : 280;
       const deltaOffset = -deltaX / sensitivity;
       let newTarget = dragStartOffsetRef.current + deltaOffset;
 
+      // Clamp with soft elastic overshoot
       const maxIndex = PROJECTS.length - 1;
-      targetOffsetRef.current = Math.max(0, Math.min(maxIndex, newTarget));
+      if (newTarget < 0) newTarget *= 0.25;
+      if (newTarget > maxIndex) newTarget = maxIndex + (newTarget - maxIndex) * 0.25;
+
+      targetOffsetRef.current = newTarget;
     };
 
     const handlePointerUp = () => {
       if (!isDraggingRef.current) return;
       isDraggingRef.current = false;
+      isHorizontalSwipe = null;
 
       setTimeout(() => {
         (window as any).__IS_CAROUSEL_DRAGGING__ = false;
-      }, 120);
+      }, 80);
 
       // Snap to nearest card index
       const maxIndex = PROJECTS.length - 1;
@@ -90,11 +114,11 @@ function CarouselController({
     };
 
     const handleWheel = (e: WheelEvent) => {
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-        const delta = e.deltaX * 0.0015;
+      const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      if (Math.abs(delta) > 2) {
         targetOffsetRef.current = Math.max(
           0,
-          Math.min(PROJECTS.length - 1, targetOffsetRef.current + delta)
+          Math.min(PROJECTS.length - 1, targetOffsetRef.current + delta * 0.003)
         );
         const snapped = Math.round(targetOffsetRef.current);
         onActiveChange(snapped);
@@ -107,7 +131,7 @@ function CarouselController({
     window.addEventListener('mouseup', handlePointerUp);
 
     window.addEventListener('touchstart', handlePointerDown, { passive: true });
-    window.addEventListener('touchmove', handlePointerMove, { passive: true });
+    window.addEventListener('touchmove', handlePointerMove, { passive: false });
     window.addEventListener('touchend', handlePointerUp);
     window.addEventListener('wheel', handleWheel, { passive: true });
 
@@ -127,7 +151,7 @@ function CarouselController({
   useFrame((_, delta) => {
     const diff = targetOffsetRef.current - offsetRef.current;
     if (Math.abs(diff) > 0.0005) {
-      offsetRef.current = THREE.MathUtils.lerp(offsetRef.current, targetOffsetRef.current, delta * 9);
+      offsetRef.current = THREE.MathUtils.lerp(offsetRef.current, targetOffsetRef.current, Math.min(delta * 12, 1.0));
 
       // Check if nearest integer index changed
       const nearest = Math.max(0, Math.min(PROJECTS.length - 1, Math.round(offsetRef.current)));

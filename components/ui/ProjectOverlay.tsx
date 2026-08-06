@@ -69,23 +69,23 @@ export function ProjectOverlay({
         </div>
       </div>
 
-      {/* Main Content Area: On mobile, text is rendered in a clean glass box below/above the 3D card. On desktop, text is aligned left or right */}
-      <div className="my-auto w-full">
+      {/* Main Content Area: On mobile positioned at bottom so 3D card is fully visible. On desktop aligned left/right beside the card */}
+      <div className="mt-auto md:my-auto w-full">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeProject.id}
-            initial={{ opacity: 0, y: 15 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-            className={`pointer-events-none p-4 sm:p-6 rounded-2xl bg-gray-950/80 md:bg-transparent backdrop-blur-lg md:backdrop-blur-none border border-gray-800/80 md:border-none shadow-2xl md:shadow-none w-full max-w-sm sm:max-w-md md:max-w-md ${
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className={`pointer-events-none p-3 sm:p-4 md:p-0 rounded-xl md:rounded-none bg-gray-950/85 md:bg-transparent backdrop-blur-md md:backdrop-blur-none border border-gray-800/60 md:border-none shadow-xl md:shadow-none w-full max-w-none md:max-w-md ${
               isRightAligned
-                ? 'mx-auto md:ml-auto md:mr-0 text-center md:text-right items-center md:items-end'
-                : 'mx-auto md:mr-auto md:ml-0 text-center md:text-left items-center md:items-start'
-            } flex flex-col space-y-2.5 sm:space-y-3`}
+                ? 'text-center md:ml-auto md:mr-0 md:text-right items-center md:items-end'
+                : 'text-center md:mr-auto md:ml-0 md:text-left items-center md:items-start'
+            } flex flex-col space-y-1.5 md:space-y-3`}
           >
             <h2
-              className="text-4xl sm:text-6xl md:text-8xl font-black font-heading tracking-tight text-white uppercase drop-shadow-2xl leading-none"
+              className="text-2xl sm:text-3xl md:text-8xl font-black font-heading tracking-tight text-white uppercase drop-shadow-2xl leading-none"
               style={{
                 textShadow: `0 0 35px ${activeProject.glowColor}`,
               }}
@@ -93,17 +93,17 @@ export function ProjectOverlay({
               {activeProject.name}
             </h2>
 
-            <p className="text-xs sm:text-base md:text-xl font-medium text-amber-200/90 tracking-wide font-heading">
+            <p className="text-[11px] sm:text-xs md:text-xl font-medium text-amber-200/90 tracking-wide font-heading">
               {activeProject.tagline}
             </p>
 
-            <p className="text-[11px] sm:text-xs md:text-sm text-gray-300/80 leading-relaxed">
+            <p className="hidden md:block text-sm text-gray-300/80 leading-relaxed">
               {activeProject.description}
             </p>
 
             {/* Keycard Entry Cue */}
-            <div className="pt-2 flex items-center justify-center md:justify-start gap-2 text-[11px] sm:text-xs md:text-sm font-bold font-heading text-amber-400">
-              <MousePointerClick size={16} className="animate-bounce" />
+            <div className="pt-0.5 md:pt-2 flex items-center justify-center md:justify-start gap-1.5 md:gap-2 text-[10px] sm:text-xs md:text-sm font-bold font-heading text-amber-400">
+              <MousePointerClick size={14} className="animate-bounce md:w-4 md:h-4" />
               <span>TAP KEYCARD TO ENTER STORE ↗</span>
             </div>
           </motion.div>
