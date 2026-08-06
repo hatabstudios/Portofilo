@@ -64,15 +64,71 @@ export function CardModel({
     return { clonedFbx: clone, autoScale: scaleFactor };
   }, [originalFbx]);
 
-  // Apply dedicated custom texture artwork in full color & sharp detail
-  useMemo(() => {
-    if (!clonedFbx || !dedicatedTexture) return;
+  // Dynamic Texture Compositor: overlays secret keycard artwork, brand title, and accent glow onto both UV halves
+  const compositedTexture = useMemo(() => {
+    if (typeof window === 'undefined') return null;
 
-    dedicatedTexture.colorSpace = THREE.SRGBColorSpace;
-    dedicatedTexture.center.set(0.5, 0.5);
-    dedicatedTexture.generateMipmaps = true;
-    dedicatedTexture.minFilter = THREE.LinearMipmapLinearFilter;
-    dedicatedTexture.needsUpdate = true;
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 1024;
+    const ctx = canvas.getContext('2d');
+
+    if (ctx) {
+      // 1. Draw dedicated texture image across both halves if loaded
+      if (dedicatedTexture?.image) {
+        // Draw the artwork side (512..1024) onto both left half (0..512) and right half (512..1024)
+        ctx.drawImage(dedicatedTexture.image, 512, 0, 512, 1024, 0, 0, 512, 1024);
+        ctx.drawImage(dedicatedTexture.image, 512, 0, 512, 1024, 512, 0, 512, 1024);
+      } else {
+        ctx.fillStyle = '#0a0d14';
+        ctx.fillRect(0, 0, 1024, 1024);
+      }
+
+      // 2. Add signature brand accent color tint overlay
+      ctx.fillStyle = project.accentColor;
+      ctx.globalAlpha = 0.16;
+      ctx.fillRect(0, 0, 1024, 1024);
+      ctx.globalAlpha = 1.0;
+
+      // 3. Add accent foil trim around card boundaries
+      ctx.strokeStyle = project.accentColor;
+      ctx.lineWidth = 14;
+      ctx.strokeRect(10, 10, 492, 1004);
+      ctx.strokeRect(522, 10, 492, 1004);
+
+      // 4. Render bold Brand Title ("MAJARRAH" / "AASIFA") & Badge on front UV face
+      ctx.save();
+      ctx.font = '900 68px sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = project.accentColor;
+      ctx.shadowBlur = 24;
+      ctx.fillText(project.name, 256, 750);
+      ctx.shadowBlur = 0;
+
+      ctx.font = 'bold 26px sans-serif';
+      ctx.fillStyle = project.accentColor;
+      ctx.fillText(project.badge, 256, 810);
+      ctx.restore();
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.needsUpdate = true;
+    return tex;
+  }, [project, dedicatedTexture]);
+
+  // Apply composited texture artwork to cloned FBX meshes
+  useMemo(() => {
+    if (!clonedFbx) return;
+
+    const activeMap = compositedTexture || dedicatedTexture;
+    if (activeMap) {
+      activeMap.colorSpace = THREE.SRGBColorSpace;
+      activeMap.generateMipmaps = true;
+      activeMap.minFilter = THREE.LinearMipmapLinearFilter;
+      activeMap.needsUpdate = true;
+    }
 
     if (normalMap) {
       normalMap.needsUpdate = true;
@@ -82,20 +138,20 @@ export function CardModel({
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
 
-        // Optimized material for high performance on both desktop & mobile GPU
+        // Clean material displaying custom artwork texture vibrantly with normal bevels
         const customMat = new THREE.MeshStandardMaterial({
-          map: dedicatedTexture,
+          map: activeMap || null,
           normalMap: normalMap || null,
           normalScale: new THREE.Vector2(0.25, 0.25),
-          roughness: isSelected ? 0.25 : 0.45,
-          metalness: 0.12,
-          envMapIntensity: isSelected ? 1.3 : 0.7,
+          roughness: isSelected ? 0.3 : 0.5,
+          metalness: 0.2,
+          envMapIntensity: isSelected ? 1.4 : 0.8,
         });
 
         mesh.material = customMat;
       }
     });
-  }, [clonedFbx, dedicatedTexture, normalMap, isSelected]);
+  }, [clonedFbx, compositedTexture, dedicatedTexture, normalMap, isSelected]);
 
   // Frame loop smoothly updates 3D mesh position directly from offsetRef (Zero React state re-render overhead)
   useFrame((state, delta) => {
