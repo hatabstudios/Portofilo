@@ -35,6 +35,7 @@ function CarouselController({
     const container = containerRef?.current;
     if (!container) return;
 
+    let isHorizontalSwipe: boolean | null = null;
     let isDragThresholdExceeded = false;
 
     const getClientX = (e: MouseEvent | TouchEvent): number => {
