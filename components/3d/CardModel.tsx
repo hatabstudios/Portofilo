@@ -184,10 +184,25 @@ export function CardModel({
     );
   });
 
+  const handlePointerOver = (e: any) => {
+    e.stopPropagation();
+    setHovered(true);
+    if (typeof document !== 'undefined') {
+      document.body.style.cursor = 'pointer';
+    }
+  };
+
+  const handlePointerOut = (e: any) => {
+    setHovered(false);
+    if (typeof document !== 'undefined') {
+      document.body.style.cursor = 'auto';
+    }
+  };
+
   const handleClick = (e: any) => {
     e.stopPropagation();
 
-    // Prevent navigation if user was performing a drag / swipe gesture
+    // Prevent navigation if user was performing a true drag gesture
     if (typeof window !== 'undefined' && (window as any).__IS_CAROUSEL_DRAGGING__) {
       return;
     }
@@ -203,8 +218,8 @@ export function CardModel({
     <group
       ref={groupRef}
       onClick={handleClick}
-      onPointerOver={() => setHovered(true)}
-      onPointerOut={() => setHovered(false)}
+      onPointerOver={handlePointerOver}
+      onPointerOut={handlePointerOut}
     >
       <primitive object={clonedFbx} />
 

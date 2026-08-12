@@ -101,10 +101,27 @@ export function ProjectOverlay({
               {activeProject.description}
             </p>
 
-            {/* Keycard Entry Cue */}
-            <div className="pt-0.5 md:pt-2 flex items-center justify-center md:justify-start gap-1.5 md:gap-2 text-[10px] sm:text-xs md:text-sm font-bold font-heading text-amber-400">
-              <MousePointerClick size={14} className="animate-bounce md:w-4 md:h-4" />
-              <span>TAP KEYCARD TO ENTER STORE ↗</span>
+            {/* Keycard Entry Cue & Interactive CTA Button */}
+            <div className={`pt-2 md:pt-4 flex flex-col sm:flex-row items-center gap-3 pointer-events-auto ${
+              isRightAligned ? 'md:justify-end' : 'md:justify-start'
+            }`}>
+              <a
+                href={activeProject.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-clickable="true"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-bold font-heading text-xs sm:text-sm uppercase tracking-wider text-gray-950 transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg group cursor-pointer"
+                style={{
+                  backgroundColor: activeProject.accentColor,
+                  boxShadow: `0 0 25px ${activeProject.glowColor}`,
+                }}
+              >
+                <MousePointerClick size={16} className="animate-bounce group-hover:animate-none" />
+                <span>Visit {activeProject.name} ↗</span>
+              </a>
+              <span className="text-[10px] sm:text-xs font-semibold text-gray-400 font-heading tracking-wide">
+                (or click 3D card)
+              </span>
             </div>
           </motion.div>
         </AnimatePresence>

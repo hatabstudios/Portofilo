@@ -35,7 +35,7 @@ function CarouselController({
     const container = containerRef?.current;
     if (!container) return;
 
-    let isHorizontalSwipe: boolean | null = null;
+    let isDragThresholdExceeded = false;
 
     const getClientX = (e: MouseEvent | TouchEvent): number => {
       if ('touches' in e && e.touches.length > 0) {
@@ -53,8 +53,9 @@ function CarouselController({
 
     const handlePointerDown = (e: MouseEvent | TouchEvent) => {
       // Ignore clicks on buttons/nav/links
-      if ((e.target as HTMLElement)?.closest('button, a, nav')) return;
+      if ((e.target as HTMLElement)?.closest('button, a, nav, [data-clickable]')) return;
       isDraggingRef.current = true;
+      isDragThresholdExceeded = false;
       isHorizontalSwipe = null;
       startXRef.current = getClientX(e);
       startYRef.current = getClientY(e);
@@ -67,9 +68,10 @@ function CarouselController({
       const currentY = getClientY(e);
       const deltaX = currentX - startXRef.current;
       const deltaY = currentY - startYRef.current;
+      const dist = Math.hypot(deltaX, deltaY);
 
       // Determine swipe direction on first significant movement
-      if (isHorizontalSwipe === null && Math.hypot(deltaX, deltaY) > 6) {
+      if (isHorizontalSwipe === null && dist > 8) {
         isHorizontalSwipe = Math.abs(deltaX) > Math.abs(deltaY) * 1.2;
       }
 
@@ -79,14 +81,20 @@ function CarouselController({
         return;
       }
 
+      // Strict threshold: do not move carousel or mark as drag unless movement exceeds threshold (12px PC, 8px mobile)
+      const dragThreshold = window.innerWidth < 768 ? 8 : 12;
+      if (!isDragThresholdExceeded) {
+        if (dist > dragThreshold) {
+          isDragThresholdExceeded = true;
+          (window as any).__IS_CAROUSEL_DRAGGING__ = true;
+        } else {
+          return; // Remain strictly a click candidate without shifting target offset
+        }
+      }
+
       // Only preventDefault on confirmed horizontal swipe (touch)
       if (isHorizontalSwipe && 'touches' in e && e.cancelable) {
         e.preventDefault();
-      }
-
-      // Mark as dragging to prevent accidental card click
-      if (Math.abs(deltaX) > 4) {
-        (window as any).__IS_CAROUSEL_DRAGGING__ = true;
       }
 
       // High sensitivity drag
@@ -107,9 +115,14 @@ function CarouselController({
       isDraggingRef.current = false;
       isHorizontalSwipe = null;
 
+      if (!isDragThresholdExceeded) {
+        (window as any).__IS_CAROUSEL_DRAGGING__ = false;
+        return;
+      }
+
       setTimeout(() => {
         (window as any).__IS_CAROUSEL_DRAGGING__ = false;
-      }, 80);
+      }, 50);
 
       // Snap to nearest card index
       const maxIndex = PROJECTS.length - 1;
@@ -130,6 +143,19 @@ function CarouselController({
       }
     };
 
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') return;
+      if (['ArrowLeft', 'a', 'A'].includes(e.key)) {
+        const next = Math.max(0, Math.round(targetOffsetRef.current) - 1);
+        targetOffsetRef.current = next;
+        onActiveChange(next);
+      } else if (['ArrowRight', 'd', 'D'].includes(e.key)) {
+        const next = Math.min(PROJECTS.length - 1, Math.round(targetOffsetRef.current) + 1);
+        targetOffsetRef.current = next;
+        onActiveChange(next);
+      }
+    };
+
     // Scope listeners to the carousel container only (not window)
     container.addEventListener('mousedown', handlePointerDown);
     window.addEventListener('mousemove', handlePointerMove);
@@ -139,6 +165,7 @@ function CarouselController({
     container.addEventListener('touchmove', handlePointerMove, { passive: false });
     container.addEventListener('touchend', handlePointerUp);
     container.addEventListener('wheel', handleWheel, { passive: true });
+    window.addEventListener('keydown', handleKeyDown);
 
     return () => {
       container.removeEventListener('mousedown', handlePointerDown);
@@ -149,6 +176,7 @@ function CarouselController({
       container.removeEventListener('touchmove', handlePointerMove);
       container.removeEventListener('touchend', handlePointerUp);
       container.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, [onActiveChange, containerRef]);
 
