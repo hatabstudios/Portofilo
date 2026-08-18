@@ -35,7 +35,6 @@ export function CardModel({
   const accentColor = project.accentColor || '#38BDF8';
   const badgeText = project.badge || 'WEB PROJECT';
 
-  // Extract initials for HUD Emblem
   const emblemText = useMemo(() => {
     return (
       project.emblemText ||
@@ -48,25 +47,21 @@ export function CardModel({
     );
   }, [project]);
 
-  // Calculate dynamic z-index for Drei HTML DOM stacking context
-  const currentOffset = offsetRef.current;
-  const currentPosIndex = index - currentOffset;
-  const distFromCenter = Math.abs(currentPosIndex);
-  const calculatedZIndex = isSelected
-    ? 100
-    : Math.max(1, 20 - Math.round(distFromCenter * 5));
-
-  // Smooth frame loop lerping WebGL 3D position, rotation, and scaling (Zero React re-render overhead)
+  // Smooth frame loop — only lerps Three.js group in world space. No flip logic here.
   useFrame((state, delta) => {
     if (!groupRef.current) return;
 
+    const currentOffset = offsetRef.current;
+    const currentPosIndex = index - currentOffset;
+    const distFromCenter = Math.abs(currentPosIndex);
+
     const isMobile = state.viewport.width < 5.5;
     const cardSpacing = isMobile ? 3.4 : 4.2;
-
-    const targetX = currentPosIndex * cardSpacing;
     const lerpSpeed = Math.min(delta * 12, 1.0);
 
-    // PERF OPTIMIZATION: OFF-SCREEN CULLING
+    const targetX = currentPosIndex * cardSpacing;
+
+    // Off-screen culling — skip expensive lerps for far-away cards
     if (distFromCenter > 2.2) {
       groupRef.current.position.x = THREE.MathUtils.lerp(groupRef.current.position.x, targetX, lerpSpeed);
       groupRef.current.visible = distFromCenter <= 3.2;
@@ -77,7 +72,6 @@ export function CardModel({
     const targetZ = -Math.pow(currentPosIndex, 2) * (isMobile ? 0.6 : 0.5);
     const floatOffset = Math.sin(state.clock.elapsedTime * 2 + index) * (isMobile ? 0.05 : 0.08);
     const targetY = isSelected ? 0.12 + floatOffset : floatOffset;
-
     const targetRotY = currentPosIndex * -0.22;
     const targetRotZ = currentPosIndex * -0.03;
 
@@ -88,44 +82,25 @@ export function CardModel({
     groupRef.current.position.x = THREE.MathUtils.lerp(groupRef.current.position.x, targetX, lerpSpeed);
     groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, targetY, lerpSpeed);
     groupRef.current.position.z = THREE.MathUtils.lerp(groupRef.current.position.z, targetZ, lerpSpeed);
-
-    groupRef.current.rotation.x = THREE.MathUtils.lerp(
-      groupRef.current.rotation.x,
-      isSelected ? 0.04 : 0,
-      lerpSpeed
-    );
+    groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, isSelected ? 0.04 : 0, lerpSpeed);
     groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetRotY, lerpSpeed);
     groupRef.current.rotation.z = THREE.MathUtils.lerp(groupRef.current.rotation.z, targetRotZ, lerpSpeed);
-
-    groupRef.current.scale.setScalar(
-      THREE.MathUtils.lerp(groupRef.current.scale.x, targetScale, lerpSpeed)
-    );
+    groupRef.current.scale.setScalar(THREE.MathUtils.lerp(groupRef.current.scale.x, targetScale, lerpSpeed));
   });
 
-  // HIT-ZONE 1: Dedicated Info Flip Control (Stops propagation so navigation never fires)
+  // Hit-zone 1: Info button — flips, never navigates
   const handleFlipClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-
-    if (typeof window !== 'undefined' && (window as any).__IS_CAROUSEL_DRAGGING__) {
-      return;
-    }
-
+    if (typeof window !== 'undefined' && (window as any).__IS_CAROUSEL_DRAGGING__) return;
     onToggleFlip();
   };
 
-  // HIT-ZONE 2: Card Body (Navigates to URL or selects card)
+  // Hit-zone 2: Card body — selects or navigates, never flips
   const handleCardBodyClick = (e: React.MouseEvent) => {
-    if (typeof window !== 'undefined' && (window as any).__IS_CAROUSEL_DRAGGING__) {
-      return;
-    }
-
-    if (!isSelected) {
-      onSelect();
-      return;
-    }
-
-    // If card is not flipped and is selected, tapping body navigates to URL
+    if (typeof window !== 'undefined' && (window as any).__IS_CAROUSEL_DRAGGING__) return;
+    if (!isSelected) { onSelect(); return; }
+    // Only navigate when front face is showing and card is selected
     if (!isFlipped && project.url) {
       if (project.url.startsWith('http://') || project.url.startsWith('https://')) {
         window.open(project.url, '_blank', 'noopener,noreferrer');
@@ -137,39 +112,51 @@ export function CardModel({
 
   return (
     <group ref={groupRef}>
+      {/*
+       * ARCHITECTURE NOTE:
+       * <Html transform> is Drei's DOM overlay — it applies its own CSS matrix
+       * for 3D projection. We must NOT add rotateY to this wrapper because it
+       * compounds with Drei's matrix and breaks text/layout.
+       *
+       * The flip is implemented ENTIRELY inside the card's own DOM:
+       *   - Both faces are position:absolute, stacked in the same box.
+       *   - isFlipped controls opacity + pointer-events on each face.
+       *   - A CSS transition on opacity (not rotateY) avoids any 3D transform
+       *     conflicts with the parent Drei Html layer.
+       *
+       * This is the correct approach for an Html-overlay-on-WebGL architecture.
+       * A mesh-level rotateY would only work if the text were baked into a texture.
+       */}
       <Html
         transform
-        distanceFactor={6.2}
+        distanceFactor={6.5}
         position={[0, 0, 0]}
-        zIndexRange={isSelected ? [100, 50] : [20, 1]}
-        style={{
-          transformStyle: 'preserve-3d',
-          transition: 'transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)',
-          transform: `rotateY(${isFlipped ? 180 : 0}deg)`,
-          zIndex: calculatedZIndex,
-        }}
+        style={{ overflow: 'hidden' }}
       >
         <div
-          className="card-container relative w-[320px] sm:w-[340px] h-[460px] sm:h-[480px] select-none cursor-pointer overflow-visible"
-          style={{ transformStyle: 'preserve-3d' }}
+          className="relative select-none cursor-pointer"
+          style={{ width: 320, height: 460 }}
           onClick={handleCardBodyClick}
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
         >
           {/* ==================== FRONT FACE ==================== */}
           <div
-            className="card-face front absolute inset-0 w-full h-full rounded-2xl p-5 border backdrop-blur-xl flex flex-col justify-between overflow-hidden shadow-2xl transition-all duration-300"
+            className="absolute inset-0 rounded-2xl p-5 border flex flex-col justify-between overflow-hidden shadow-2xl"
             style={{
-              backfaceVisibility: 'hidden',
-              WebkitBackfaceVisibility: 'hidden',
               borderColor: `${accentColor}70`,
               background: `radial-gradient(ellipse at top, ${accentColor}18 0%, #090d16 75%, #030712 100%)`,
               boxShadow: isSelected
                 ? `0 20px 50px -10px ${accentColor}40, inset 0 0 20px ${accentColor}15`
                 : '0 10px 30px -10px rgba(0,0,0,0.8)',
+              // Flip: hide front when flipped using opacity + pointer-events
+              opacity: isFlipped ? 0 : 1,
+              pointerEvents: isFlipped ? 'none' : 'auto',
+              transition: 'opacity 0.35s ease',
+              zIndex: isFlipped ? 0 : 1,
             }}
           >
-            {/* Procedural Grid Background Pattern */}
+            {/* Procedural Grid Background */}
             <div
               className="absolute inset-0 opacity-15 pointer-events-none"
               style={{
@@ -178,13 +165,13 @@ export function CardModel({
               }}
             />
 
-            {/* Sci-Fi HUD Bracket Corner Ticks */}
+            {/* Sci-Fi HUD Bracket Corners */}
             <div className="absolute top-2.5 left-2.5 w-3.5 h-3.5 border-t-2 border-l-2 pointer-events-none" style={{ borderColor: accentColor }} />
             <div className="absolute top-2.5 right-2.5 w-3.5 h-3.5 border-t-2 border-r-2 pointer-events-none" style={{ borderColor: accentColor }} />
             <div className="absolute bottom-2.5 left-2.5 w-3.5 h-3.5 border-b-2 border-l-2 pointer-events-none" style={{ borderColor: accentColor }} />
             <div className="absolute bottom-2.5 right-2.5 w-3.5 h-3.5 border-b-2 border-r-2 pointer-events-none" style={{ borderColor: accentColor }} />
 
-            {/* Active Card Subtle Ambient Scanline Glow */}
+            {/* Active Scanline Glow */}
             {isSelected && (
               <div
                 className="absolute inset-x-0 h-24 pointer-events-none blur-xl animate-pulse"
@@ -195,171 +182,149 @@ export function CardModel({
               />
             )}
 
-            {/* FRONT HEADER: Badge Chip & DEDICATED INFO FLIP BUTTON */}
+            {/* Header row: badge + info button */}
             <div className="flex items-center justify-between z-10">
-              <div className="flex items-center gap-2">
-                <span
-                  className="px-3 py-1 text-[10px] font-extrabold tracking-widest font-heading rounded-full uppercase border shadow-sm backdrop-blur-md"
-                  style={{
-                    borderColor: accentColor,
-                    color: accentColor,
-                    backgroundColor: `${accentColor}20`,
-                  }}
-                >
-                  {badgeText}
-                </span>
-              </div>
+              <span
+                className="px-3 py-1 text-[10px] font-extrabold tracking-widest rounded-full uppercase border backdrop-blur-md"
+                style={{ borderColor: accentColor, color: accentColor, backgroundColor: `${accentColor}20` }}
+              >
+                {badgeText}
+              </span>
 
-              {/* DEDICATED INFO FLIP CONTROL (Hit-Zone 1) */}
+              {/* INFO BUTTON — stopPropagation prevents navigation */}
               <button
                 onClick={handleFlipClick}
-                title="Tap to view project details"
+                title="View project details"
                 aria-label="View project details"
-                className="w-8 h-8 rounded-full flex items-center justify-center border transition-all duration-300 transform hover:scale-115 active:scale-90 shadow-lg group pointer-events-auto"
+                className="w-8 h-8 rounded-full flex items-center justify-center border transition-all duration-200 hover:scale-110 active:scale-90"
                 style={{
                   borderColor: accentColor,
                   color: accentColor,
-                  backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                  boxShadow: `0 0 15px ${accentColor}40`,
+                  backgroundColor: 'rgba(15,23,42,0.9)',
+                  boxShadow: `0 0 12px ${accentColor}40`,
                 }}
               >
-                <Info size={15} className="group-hover:rotate-12 transition-transform" />
+                <Info size={15} />
               </button>
             </div>
 
-            {/* VIEWPORT SCREENSHOT CONTAINER */}
+            {/* Screenshot */}
             <div
-              className="relative my-3 h-[210px] sm:h-[230px] rounded-xl overflow-hidden border shadow-inner group/img z-10"
-              style={{ borderColor: `${accentColor}50` }}
+              className="relative my-3 rounded-xl overflow-hidden border z-10"
+              style={{ height: 210, borderColor: `${accentColor}50` }}
             >
               <img
                 src={project.image}
                 alt={project.name}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-105"
+                className="w-full h-full object-cover"
               />
               <div
                 className="absolute inset-0 opacity-40 pointer-events-none"
-                style={{
-                  background: `linear-gradient(180deg, transparent 60%, ${accentColor}40 100%)`,
-                }}
+                style={{ background: `linear-gradient(180deg, transparent 60%, ${accentColor}40 100%)` }}
               />
               <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-gray-950/80 text-white border border-gray-800">
                 {emblemText}
               </div>
             </div>
 
-            {/* FRONT FOOTER: Title, Tagline & Click-to-Visit Hint */}
+            {/* Footer */}
             <div className="flex flex-col space-y-1 z-10">
               <div className="flex items-center justify-between">
-                <h3
-                  className="text-xl sm:text-2xl font-black font-heading tracking-tight text-white uppercase drop-shadow-md"
-                  style={{ textShadow: `0 0 12px ${accentColor}60` }}
-                >
+                <h3 className="text-xl font-black tracking-tight text-white uppercase" style={{ textShadow: `0 0 12px ${accentColor}60` }}>
                   {project.name}
                 </h3>
-                <ExternalLink size={16} style={{ color: accentColor }} className="opacity-80" />
+                <ExternalLink size={16} style={{ color: accentColor }} className="opacity-80 flex-shrink-0" />
               </div>
-
-              <p className="text-xs font-semibold font-heading text-amber-200/90 tracking-wide line-clamp-1">
+              <p className="text-xs font-semibold text-amber-200/90 tracking-wide line-clamp-1">
                 {project.subtitle || project.tagline}
               </p>
-
-              <div className="pt-2 flex items-center justify-between text-[10px] font-mono font-bold text-gray-400">
+              <div className="pt-1 flex items-center justify-between text-[10px] font-mono text-gray-400">
                 <span className="flex items-center gap-1 text-emerald-400">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                   ONLINE
                 </span>
-                <span className="text-gray-300 hover:underline">
-                  Tap body to visit ↗
-                </span>
+                <span>Tap body to visit ↗</span>
               </div>
             </div>
           </div>
 
           {/* ==================== BACK FACE ==================== */}
+          {/*
+           * Back face: same absolute-inset position as front.
+           * NOT rotated — no rotateY here at all.
+           * Shown/hidden purely via opacity + pointer-events transition.
+           * Text is native DOM left-to-right with zero transform complexity.
+           */}
           <div
-            className="card-face back absolute inset-0 w-full h-full rounded-2xl p-6 border backdrop-blur-2xl overflow-hidden shadow-2xl"
+            className="absolute inset-0 rounded-2xl p-6 border flex flex-col justify-between overflow-hidden shadow-2xl"
             style={{
-              backfaceVisibility: 'hidden',
-              WebkitBackfaceVisibility: 'hidden',
-              transform: 'rotateY(180deg)',
               borderColor: accentColor,
               background: `radial-gradient(ellipse at bottom, ${accentColor}25 0%, #060912 70%, #020408 100%)`,
               boxShadow: `0 20px 60px -10px ${accentColor}50`,
+              // Flip: show back when isFlipped
+              opacity: isFlipped ? 1 : 0,
+              pointerEvents: isFlipped ? 'auto' : 'none',
+              transition: 'opacity 0.35s ease',
+              zIndex: isFlipped ? 1 : 0,
             }}
           >
-            {/* COUNTER-ROTATION WRAPPER: Cancels out mirroring so text renders normally left-to-right */}
-            <div
-              className="w-full h-full flex flex-col justify-between"
-              style={{ transform: 'rotateY(180deg)' }}
-            >
-              {/* Sci-Fi HUD Bracket Corner Ticks */}
-              <div className="absolute top-2.5 left-2.5 w-3.5 h-3.5 border-t-2 border-l-2 pointer-events-none" style={{ borderColor: accentColor }} />
-              <div className="absolute top-2.5 right-2.5 w-3.5 h-3.5 border-t-2 border-r-2 pointer-events-none" style={{ borderColor: accentColor }} />
-              <div className="absolute bottom-2.5 left-2.5 w-3.5 h-3.5 border-b-2 border-l-2 pointer-events-none" style={{ borderColor: accentColor }} />
-              <div className="absolute bottom-2.5 right-2.5 w-3.5 h-3.5 border-b-2 border-r-2 pointer-events-none" style={{ borderColor: accentColor }} />
+            {/* HUD Bracket Corners */}
+            <div className="absolute top-2.5 left-2.5 w-3.5 h-3.5 border-t-2 border-l-2 pointer-events-none" style={{ borderColor: accentColor }} />
+            <div className="absolute top-2.5 right-2.5 w-3.5 h-3.5 border-t-2 border-r-2 pointer-events-none" style={{ borderColor: accentColor }} />
+            <div className="absolute bottom-2.5 left-2.5 w-3.5 h-3.5 border-b-2 border-l-2 pointer-events-none" style={{ borderColor: accentColor }} />
+            <div className="absolute bottom-2.5 right-2.5 w-3.5 h-3.5 border-b-2 border-r-2 pointer-events-none" style={{ borderColor: accentColor }} />
 
-              {/* BACK HEADER: Title & Close Flip Button */}
-              <div className="flex items-center justify-between z-10 pb-2 border-b border-gray-800">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck size={18} style={{ color: accentColor }} />
-                  <h3 className="text-xl font-black font-heading text-white uppercase tracking-wider">
-                    {project.name}
-                  </h3>
-                </div>
-
-                {/* DEDICATED CLOSE FLIP BUTTON */}
-                <button
-                  onClick={handleFlipClick}
-                  title="Flip back to front"
-                  aria-label="Flip back"
-                  className="p-1.5 rounded-full border border-gray-700 bg-gray-900/90 text-gray-300 hover:text-white hover:border-white transition-all pointer-events-auto"
-                >
-                  <X size={16} />
-                </button>
+            {/* Back Header */}
+            <div className="flex items-center justify-between pb-2 border-b border-gray-800">
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={18} style={{ color: accentColor }} />
+                <h3 className="text-xl font-black text-white uppercase tracking-wider">
+                  {project.name}
+                </h3>
               </div>
+              {/* CLOSE BUTTON — stopPropagation prevents body click navigating */}
+              <button
+                onClick={handleFlipClick}
+                title="Flip back"
+                aria-label="Flip back"
+                className="p-1.5 rounded-full border border-gray-700 bg-gray-900/90 text-gray-300 hover:text-white transition-all"
+              >
+                <X size={16} />
+              </button>
+            </div>
 
-              {/* BACK BODY: Tagline & Detailed Description */}
-              <div className="flex flex-col space-y-3 z-10 my-auto">
-                <p className="text-xs sm:text-sm font-bold font-heading tracking-wide" style={{ color: accentColor }}>
-                  {project.tagline}
-                </p>
-
-                <p className="text-xs text-gray-300/95 leading-relaxed font-sans line-clamp-6">
-                  {project.description}
-                </p>
-
-                {/* Technical Specifications Matrix */}
-                <div className="p-3 rounded-xl bg-gray-950/80 border border-gray-800/80 space-y-1.5 font-mono text-[10px]">
-                  <div className="flex items-center justify-between text-gray-400">
-                    <span>DEPLOYMENT METRICS:</span>
-                    <span className="text-emerald-400 font-bold">VERIFIED</span>
-                  </div>
-                  <div className="text-gray-300 truncate">
-                    <span className="text-gray-500">TARGET: </span>
-                    {project.url}
-                  </div>
+            {/* Back Body */}
+            <div className="flex flex-col space-y-3 flex-1 my-3 overflow-hidden">
+              <p className="text-xs font-bold tracking-wide" style={{ color: accentColor }}>
+                {project.tagline}
+              </p>
+              <p className="text-xs text-gray-300/95 leading-relaxed line-clamp-6">
+                {project.description}
+              </p>
+              <div className="p-3 rounded-xl bg-gray-950/80 border border-gray-800/80 font-mono text-[10px] space-y-1.5">
+                <div className="flex items-center justify-between text-gray-400">
+                  <span>DEPLOYMENT:</span>
+                  <span className="text-emerald-400 font-bold">VERIFIED</span>
                 </div>
-              </div>
-
-              {/* BACK FOOTER: Interactive "VISIT LIVE PROJECT ↗" Button */}
-              <div className="z-10 pt-2">
-                <a
-                  href={project.url}
-                  target={project.url.startsWith('http') ? '_blank' : '_self'}
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="w-full py-3 rounded-full font-bold font-heading text-xs uppercase tracking-wider text-gray-950 flex items-center justify-center gap-2 transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg group pointer-events-auto"
-                  style={{
-                    backgroundColor: accentColor,
-                    boxShadow: `0 0 20px ${accentColor}60`,
-                  }}
-                >
-                  <Sparkles size={14} />
-                  <span>Visit Live Project ↗</span>
-                </a>
+                <div className="text-gray-300 truncate">
+                  <span className="text-gray-500">TARGET: </span>
+                  {project.url}
+                </div>
               </div>
             </div>
+
+            {/* Visit Button */}
+            <a
+              href={project.url}
+              target={project.url.startsWith('http') ? '_blank' : '_self'}
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full py-3 rounded-full font-bold text-xs uppercase tracking-wider text-gray-950 flex items-center justify-center gap-2 transition-transform hover:scale-105 active:scale-95 shadow-lg"
+              style={{ backgroundColor: accentColor, boxShadow: `0 0 20px ${accentColor}60` }}
+            >
+              <Sparkles size={14} />
+              <span>Visit Live Project ↗</span>
+            </a>
           </div>
         </div>
       </Html>
