@@ -48,13 +48,17 @@ export function CardModel({
     );
   }, [project]);
 
+  // Calculate dynamic z-index for Drei HTML DOM stacking context
+  const currentOffset = offsetRef.current;
+  const currentPosIndex = index - currentOffset;
+  const distFromCenter = Math.abs(currentPosIndex);
+  const calculatedZIndex = isSelected
+    ? 100
+    : Math.max(1, 20 - Math.round(distFromCenter * 5));
+
   // Smooth frame loop lerping WebGL 3D position, rotation, and scaling (Zero React re-render overhead)
   useFrame((state, delta) => {
     if (!groupRef.current) return;
-
-    const currentOffset = offsetRef.current;
-    const currentPosIndex = index - currentOffset;
-    const distFromCenter = Math.abs(currentPosIndex);
 
     const isMobile = state.viewport.width < 5.5;
     const cardSpacing = isMobile ? 3.4 : 4.2;
@@ -62,8 +66,7 @@ export function CardModel({
     const targetX = currentPosIndex * cardSpacing;
     const lerpSpeed = Math.min(delta * 12, 1.0);
 
-    // --- PERF OPTIMIZATION: OFF-SCREEN CULLING ---
-    // If card is far off-screen (> 2.2 units away), skip heavy transforms
+    // PERF OPTIMIZATION: OFF-SCREEN CULLING
     if (distFromCenter > 2.2) {
       groupRef.current.position.x = THREE.MathUtils.lerp(groupRef.current.position.x, targetX, lerpSpeed);
       groupRef.current.visible = distFromCenter <= 3.2;
@@ -138,14 +141,16 @@ export function CardModel({
         transform
         distanceFactor={6.2}
         position={[0, 0, 0]}
+        zIndexRange={isSelected ? [100, 50] : [20, 1]}
         style={{
           transformStyle: 'preserve-3d',
           transition: 'transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)',
           transform: `rotateY(${isFlipped ? 180 : 0}deg)`,
+          zIndex: calculatedZIndex,
         }}
       >
         <div
-          className="card-container relative w-[320px] sm:w-[350px] h-[460px] sm:h-[490px] select-none cursor-pointer"
+          className="card-container relative w-[320px] sm:w-[340px] h-[460px] sm:h-[480px] select-none cursor-pointer overflow-visible"
           style={{ transformStyle: 'preserve-3d' }}
           onClick={handleCardBodyClick}
           onMouseEnter={() => setHovered(true)}
@@ -153,7 +158,7 @@ export function CardModel({
         >
           {/* ==================== FRONT FACE ==================== */}
           <div
-            className="card-face front absolute inset-0 rounded-2xl p-5 border backdrop-blur-xl flex flex-col justify-between overflow-hidden shadow-2xl transition-all duration-300"
+            className="card-face front absolute inset-0 w-full h-full rounded-2xl p-5 border backdrop-blur-xl flex flex-col justify-between overflow-hidden shadow-2xl transition-all duration-300"
             style={{
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
@@ -273,7 +278,7 @@ export function CardModel({
 
           {/* ==================== BACK FACE ==================== */}
           <div
-            className="card-face back absolute inset-0 rounded-2xl p-6 border backdrop-blur-2xl flex flex-col justify-between overflow-hidden shadow-2xl"
+            className="card-face back absolute inset-0 w-full h-full rounded-2xl p-6 border backdrop-blur-2xl overflow-hidden shadow-2xl"
             style={{
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
@@ -283,71 +288,77 @@ export function CardModel({
               boxShadow: `0 20px 60px -10px ${accentColor}50`,
             }}
           >
-            {/* Sci-Fi HUD Bracket Corner Ticks */}
-            <div className="absolute top-2.5 left-2.5 w-3.5 h-3.5 border-t-2 border-l-2 pointer-events-none" style={{ borderColor: accentColor }} />
-            <div className="absolute top-2.5 right-2.5 w-3.5 h-3.5 border-t-2 border-r-2 pointer-events-none" style={{ borderColor: accentColor }} />
-            <div className="absolute bottom-2.5 left-2.5 w-3.5 h-3.5 border-b-2 border-l-2 pointer-events-none" style={{ borderColor: accentColor }} />
-            <div className="absolute bottom-2.5 right-2.5 w-3.5 h-3.5 border-b-2 border-r-2 pointer-events-none" style={{ borderColor: accentColor }} />
+            {/* COUNTER-ROTATION WRAPPER: Cancels out mirroring so text renders normally left-to-right */}
+            <div
+              className="w-full h-full flex flex-col justify-between"
+              style={{ transform: 'rotateY(180deg)' }}
+            >
+              {/* Sci-Fi HUD Bracket Corner Ticks */}
+              <div className="absolute top-2.5 left-2.5 w-3.5 h-3.5 border-t-2 border-l-2 pointer-events-none" style={{ borderColor: accentColor }} />
+              <div className="absolute top-2.5 right-2.5 w-3.5 h-3.5 border-t-2 border-r-2 pointer-events-none" style={{ borderColor: accentColor }} />
+              <div className="absolute bottom-2.5 left-2.5 w-3.5 h-3.5 border-b-2 border-l-2 pointer-events-none" style={{ borderColor: accentColor }} />
+              <div className="absolute bottom-2.5 right-2.5 w-3.5 h-3.5 border-b-2 border-r-2 pointer-events-none" style={{ borderColor: accentColor }} />
 
-            {/* BACK HEADER: Title & Close Flip Button */}
-            <div className="flex items-center justify-between z-10 pb-2 border-b border-gray-800">
-              <div className="flex items-center gap-2">
-                <ShieldCheck size={18} style={{ color: accentColor }} />
-                <h3 className="text-xl font-black font-heading text-white uppercase tracking-wider">
-                  {project.name}
-                </h3>
+              {/* BACK HEADER: Title & Close Flip Button */}
+              <div className="flex items-center justify-between z-10 pb-2 border-b border-gray-800">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck size={18} style={{ color: accentColor }} />
+                  <h3 className="text-xl font-black font-heading text-white uppercase tracking-wider">
+                    {project.name}
+                  </h3>
+                </div>
+
+                {/* DEDICATED CLOSE FLIP BUTTON */}
+                <button
+                  onClick={handleFlipClick}
+                  title="Flip back to front"
+                  aria-label="Flip back"
+                  className="p-1.5 rounded-full border border-gray-700 bg-gray-900/90 text-gray-300 hover:text-white hover:border-white transition-all pointer-events-auto"
+                >
+                  <X size={16} />
+                </button>
               </div>
 
-              {/* DEDICATED CLOSE FLIP BUTTON */}
-              <button
-                onClick={handleFlipClick}
-                title="Flip back to front"
-                aria-label="Flip back"
-                className="p-1.5 rounded-full border border-gray-700 bg-gray-900/90 text-gray-300 hover:text-white hover:border-white transition-all pointer-events-auto"
-              >
-                <X size={16} />
-              </button>
-            </div>
+              {/* BACK BODY: Tagline & Detailed Description */}
+              <div className="flex flex-col space-y-3 z-10 my-auto">
+                <p className="text-xs sm:text-sm font-bold font-heading tracking-wide" style={{ color: accentColor }}>
+                  {project.tagline}
+                </p>
 
-            {/* BACK BODY: Tagline & Detailed Description */}
-            <div className="flex flex-col space-y-3 z-10 my-auto">
-              <p className="text-xs sm:text-sm font-bold font-heading tracking-wide" style={{ color: accentColor }}>
-                {project.tagline}
-              </p>
+                <p className="text-xs text-gray-300/95 leading-relaxed font-sans line-clamp-6">
+                  {project.description}
+                </p>
 
-              <p className="text-xs text-gray-300/95 leading-relaxed font-sans line-clamp-6">
-                {project.description}
-              </p>
-
-              {/* Technical Specifications Matrix */}
-              <div className="p-3 rounded-xl bg-gray-950/80 border border-gray-800/80 space-y-1.5 font-mono text-[10px]">
-                <div className="flex items-center justify-between text-gray-400">
-                  <span>DEPLOYMENT METRICS:</span>
-                  <span className="text-emerald-400 font-bold">VERIFIED</span>
-                </div>
-                <div className="text-gray-300 truncate">
-                  <span className="text-gray-500">TARGET: </span>
-                  {project.url}
+                {/* Technical Specifications Matrix */}
+                <div className="p-3 rounded-xl bg-gray-950/80 border border-gray-800/80 space-y-1.5 font-mono text-[10px]">
+                  <div className="flex items-center justify-between text-gray-400">
+                    <span>DEPLOYMENT METRICS:</span>
+                    <span className="text-emerald-400 font-bold">VERIFIED</span>
+                  </div>
+                  <div className="text-gray-300 truncate">
+                    <span className="text-gray-500">TARGET: </span>
+                    {project.url}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* BACK FOOTER: Interactive "VISIT LIVE PROJECT ↗" Button */}
-            <div className="z-10 pt-2">
-              <a
-                href={project.url}
-                target={project.url.startsWith('http') ? '_blank' : '_self'}
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="w-full py-3 rounded-full font-bold font-heading text-xs uppercase tracking-wider text-gray-950 flex items-center justify-center gap-2 transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg group pointer-events-auto"
-                style={{
-                  backgroundColor: accentColor,
-                  boxShadow: `0 0 20px ${accentColor}60`,
-                }}
-              >
-                <Sparkles size={14} />
-                <span>Visit Live Project ↗</span>
-              </a>
+              {/* BACK FOOTER: Interactive "VISIT LIVE PROJECT ↗" Button */}
+              <div className="z-10 pt-2">
+                <a
+                  href={project.url}
+                  target={project.url.startsWith('http') ? '_blank' : '_self'}
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full py-3 rounded-full font-bold font-heading text-xs uppercase tracking-wider text-gray-950 flex items-center justify-center gap-2 transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg group pointer-events-auto"
+                  style={{
+                    backgroundColor: accentColor,
+                    boxShadow: `0 0 20px ${accentColor}60`,
+                  }}
+                >
+                  <Sparkles size={14} />
+                  <span>Visit Live Project ↗</span>
+                </a>
+              </div>
             </div>
           </div>
         </div>
