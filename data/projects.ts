@@ -25,7 +25,7 @@ export const PROJECTS: Project[] = [
     description:
       'Developed the web platform for Drop 01 & Eclipse Collection teaser. Coded from provided brand assets into a high-performance web experience.',
     url: 'https://majarrah.vercel.app/',
-    image: '/textures/Majarrahkeycard.jpg',
+    image: '/textures/majarrah_screenshot.png',
     badge: 'WEB APP IMPLEMENTATION',
     accentColor: '#F59E0B',
     glowColor: 'rgba(245, 158, 11, 0.45)',
@@ -39,7 +39,7 @@ export const PROJECTS: Project[] = [
     description:
       'Engineered the single-page teaser web application from provided brand direction, implementing high-speed layout rendering for luxury streetwear drops.',
     url: 'https://aasifaa.vercel.app/',
-    image: '/textures/assifakeycard.jpg',
+    image: '/textures/aasifa_screenshot.png',
     badge: 'FRONTEND DEVELOPMENT',
     accentColor: '#6366F1',
     glowColor: 'rgba(99, 102, 241, 0.45)',

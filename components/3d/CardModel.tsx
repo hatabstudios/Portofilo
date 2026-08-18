@@ -47,6 +47,80 @@ export function CardModel({
     );
   }, [project]);
 
+  // Branded fallback — generated once per card, shown on img onError
+  // Draws accent-colored dark card with project title so missing images are never
+  // confused with real content or generic stock placeholders.
+  const fallbackDataUrl = useMemo(() => {
+    if (typeof window === 'undefined') return '';
+    const W = 600, H = 400;
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return '';
+
+    // Dark base
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, '#0a0d14');
+    bg.addColorStop(1, '#030712');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // Subtle accent radial glow
+    const glow = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, W * 0.55);
+    glow.addColorStop(0, accentColor + '30');
+    glow.addColorStop(1, 'transparent');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H);
+
+    // Fine grid
+    ctx.strokeStyle = accentColor + '18';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+    // Border
+    ctx.strokeStyle = accentColor + '60';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(8, 8, W - 16, H - 16);
+
+    // HUD corner ticks
+    const T = 18;
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 3;
+    [[8,8,T,0],[W-8,8,-T,0],[8,H-8,T,0],[W-8,H-8,-T,0]].forEach(([x,y,dx]) => {
+      ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+dx,y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y+(dx===0?T:Math.sign(y===8?1:-1)*T)); ctx.stroke();
+    });
+
+    // Emblem circle
+    ctx.beginPath();
+    ctx.arc(W / 2, H / 2 - 24, 52, 0, Math.PI * 2);
+    ctx.fillStyle = accentColor + '20';
+    ctx.fill();
+    ctx.strokeStyle = accentColor + '80';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Emblem initials
+    ctx.fillStyle = accentColor;
+    ctx.font = `bold 36px monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emblemText, W / 2, H / 2 - 24);
+
+    // Project name
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold 22px sans-serif`;
+    ctx.fillText(project.name.toUpperCase(), W / 2, H / 2 + 52);
+
+    // Badge
+    ctx.fillStyle = accentColor + 'aa';
+    ctx.font = `11px monospace`;
+    ctx.fillText(badgeText, W / 2, H / 2 + 80);
+
+    return canvas.toDataURL('image/png');
+  }, [accentColor, emblemText, project.name, badgeText]);
+
   // Smooth frame loop — only lerps Three.js group in world space. No flip logic here.
   useFrame((state, delta) => {
     if (!groupRef.current) return;
@@ -217,6 +291,9 @@ export function CardModel({
                 src={project.image}
                 alt={project.name}
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = fallbackDataUrl;
+                }}
               />
               <div
                 className="absolute inset-0 opacity-40 pointer-events-none"
