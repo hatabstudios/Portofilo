@@ -12,7 +12,9 @@ interface CardModelProps {
   totalCards: number;
   offsetRef: React.MutableRefObject<number>;
   isSelected: boolean;
+  isFlipped: boolean;
   onSelect: () => void;
+  onToggleFlip: () => void;
   onOpenModal?: (project: Project) => void;
 }
 
@@ -57,13 +59,41 @@ function createGlareTexture(): THREE.CanvasTexture {
   return tex;
 }
 
+// Canvas text word wrapping helper
+function wrapText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number
+) {
+  const words = text.split(' ');
+  let line = '';
+  let currentY = y;
+  for (let n = 0; n < words.length; n++) {
+    const testLine = line + words[n] + ' ';
+    const metrics = ctx.measureText(testLine);
+    if (metrics.width > maxWidth && n > 0) {
+      ctx.fillText(line, x, currentY);
+      line = words[n] + ' ';
+      currentY += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+  ctx.fillText(line, x, currentY);
+}
+
 export function CardModel({
   project,
   index,
   totalCards,
   offsetRef,
   isSelected,
+  isFlipped,
   onSelect,
+  onToggleFlip,
   onOpenModal,
 }: CardModelProps) {
   const groupRef = useRef<THREE.Group>(null);
@@ -112,84 +142,55 @@ export function CardModel({
     return { clonedFbx: clone, autoScale: scaleFactor };
   }, [originalFbx]);
 
-  // Universal Card Shell Canvas Texture Generator
-  const shellTexture = useMemo(() => {
+  // Front Face Canvas Texture Generator (512x512 for high performance)
+  const frontTexture = useMemo(() => {
     if (typeof window === 'undefined') return null;
 
     const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = 1024;
+    canvas.width = 512;
+    canvas.height = 512;
     const ctx = canvas.getContext('2d');
 
     if (ctx) {
       const accent = project.accentColor || '#38BDF8';
 
-      // 1. Dark Midnight Metallic Background
-      const bgGrad = ctx.createRadialGradient(512, 512, 100, 512, 512, 700);
+      // Background gradient
+      const bgGrad = ctx.createRadialGradient(256, 256, 50, 256, 256, 350);
       bgGrad.addColorStop(0, '#0f172a');
       bgGrad.addColorStop(0.6, '#090d16');
       bgGrad.addColorStop(1, '#030712');
       ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, 1024, 1024);
+      ctx.fillRect(0, 0, 512, 512);
 
-      // 2. Subtle Accent Ambient Glow
-      const glowGrad = ctx.createRadialGradient(512, 350, 0, 512, 350, 450);
-      glowGrad.addColorStop(0, accent + '25');
-      glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = glowGrad;
-      ctx.fillRect(0, 0, 1024, 1024);
-
-      // 3. Technical Grid Lines
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
-      ctx.lineWidth = 1;
-      for (let x = 60; x < 1024; x += 80) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, 1024);
-        ctx.stroke();
-      }
-      for (let y = 60; y < 1024; y += 80) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(1024, y);
-        ctx.stroke();
-      }
-
-      // 4. Outer Glass Chamfer Border Frame
+      // Glass Chamfer Border Frame
       ctx.strokeStyle = accent + '50';
-      ctx.lineWidth = 6;
-      ctx.strokeRect(36, 36, 952, 952);
-
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(48, 48, 928, 928);
+      ctx.lineWidth = 4;
+      ctx.strokeRect(18, 18, 476, 476);
 
       // Corner tech accents
       ctx.fillStyle = accent;
-      ctx.fillRect(32, 32, 16, 16);
-      ctx.fillRect(976, 32, 16, 16);
-      ctx.fillRect(32, 976, 16, 16);
-      ctx.fillRect(976, 976, 16, 16);
+      ctx.fillRect(16, 16, 10, 10);
+      ctx.fillRect(486, 16, 10, 10);
+      ctx.fillRect(16, 486, 10, 10);
+      ctx.fillRect(486, 486, 10, 10);
 
-      // 5. Header Section: Badge Chip & Emblem Monogram
+      // Badge Chip
       const badgeText = (project.badge || 'WEB PROJECT').toUpperCase();
-      ctx.font = '900 24px sans-serif';
-      const badgeWidth = ctx.measureText(badgeText).width + 36;
+      ctx.font = '900 13px sans-serif';
+      const badgeWidth = ctx.measureText(badgeText).width + 20;
 
-      // Badge background pill
       ctx.fillStyle = accent + '30';
       ctx.strokeStyle = accent;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.roundRect(70, 70, badgeWidth, 42, 21);
+      ctx.roundRect(35, 35, badgeWidth, 24, 12);
       ctx.fill();
       ctx.stroke();
 
-      // Badge text
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(badgeText, 88, 99);
+      ctx.fillText(badgeText, 45, 52);
 
-      // Emblem Monogram (Derived from Title if not supplied)
+      // Emblem Monogram
       const emblem =
         project.emblemText ||
         project.name
@@ -200,57 +201,52 @@ export function CardModel({
           .toUpperCase();
       ctx.fillStyle = '#030712';
       ctx.strokeStyle = accent;
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.roundRect(880, 68, 72, 48, 12);
+      ctx.roundRect(436, 34, 40, 26, 6);
       ctx.fill();
       ctx.stroke();
 
       ctx.fillStyle = accent;
-      ctx.font = '900 22px sans-serif';
+      ctx.font = '900 12px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(emblem, 916, 100);
+      ctx.fillText(emblem, 456, 51);
       ctx.textAlign = 'left';
 
-      // 6. Project Title & Tagline Header
+      // Title & Tagline Header
       ctx.fillStyle = '#ffffff';
-      ctx.font = '900 48px sans-serif';
+      ctx.font = '900 24px sans-serif';
       ctx.shadowColor = accent;
-      ctx.shadowBlur = 15;
-      ctx.fillText(project.name.toUpperCase(), 70, 185);
+      ctx.shadowBlur = 8;
+      ctx.fillText(project.name.toUpperCase(), 35, 95);
       ctx.shadowBlur = 0;
 
       ctx.fillStyle = accent;
-      ctx.font = '600 22px sans-serif';
+      ctx.font = '600 12px sans-serif';
       const taglineText = project.subtitle || project.tagline || '';
-      ctx.fillText(taglineText.slice(0, 48), 70, 220);
+      ctx.fillText(taglineText.slice(0, 35), 35, 114);
 
-      // 7. Recessed Display Window Frame (Cutout area for Parallax Screenshot)
+      // Display Window Frame (Cutout area for Parallax Screenshot)
       ctx.fillStyle = '#02040a';
-      ctx.fillRect(70, 250, 884, 620);
+      ctx.fillRect(35, 130, 442, 310);
 
-      // Inner Bezel Highlight
       ctx.strokeStyle = accent + '80';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(68, 248, 888, 624);
+      ctx.lineWidth = 2;
+      ctx.strokeRect(34, 129, 444, 312);
 
-      ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(60, 240, 904, 640);
-
-      // 8. Footer Section: Technical Serial & Status Dot
+      // Footer Section
       ctx.fillStyle = '#10b981';
       ctx.beginPath();
-      ctx.arc(80, 925, 8, 0, Math.PI * 2);
+      ctx.arc(42, 465, 4, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-      ctx.font = '600 18px monospace';
-      ctx.fillText('SYSTEM ONLINE :: SEC-PASS ' + project.id.toUpperCase(), 102, 931);
+      ctx.font = '600 10px monospace';
+      ctx.fillText('SEC-PASS :: ' + project.id.toUpperCase(), 52, 468);
 
       ctx.fillStyle = accent;
-      ctx.font = '700 18px monospace';
-      ctx.fillText('VERIFIED AGENT [01]', 750, 931);
+      ctx.font = '700 10px monospace';
+      ctx.fillText('[TAP TO FLIP ↺]', 370, 468);
     }
 
     const tex = new THREE.CanvasTexture(canvas);
@@ -261,57 +257,152 @@ export function CardModel({
     return tex;
   }, [project]);
 
-  // Apply card shell material to cloned FBX meshes
+  // Back Face Canvas Texture Generator (512x512)
+  const backTexture = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+
+    if (ctx) {
+      const accent = project.accentColor || '#38BDF8';
+
+      // Dark Carbon Background
+      const bgGrad = ctx.createRadialGradient(256, 256, 50, 256, 256, 350);
+      bgGrad.addColorStop(0, '#0f172a');
+      bgGrad.addColorStop(0.7, '#070a12');
+      bgGrad.addColorStop(1, '#020408');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, 512, 512);
+
+      // Border line
+      ctx.strokeStyle = accent + '80';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(20, 20, 472, 472);
+
+      // Monogram & Title Header
+      ctx.fillStyle = accent;
+      ctx.font = '900 20px sans-serif';
+      ctx.fillText(project.name.toUpperCase(), 36, 60);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '700 12px sans-serif';
+      ctx.fillText(project.tagline, 36, 82);
+
+      // Divider line
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(36, 96);
+      ctx.lineTo(476, 96);
+      ctx.stroke();
+
+      // Project Description Text
+      ctx.fillStyle = 'rgba(241, 245, 249, 0.95)';
+      ctx.font = '500 13px sans-serif';
+      wrapText(ctx, project.description, 36, 125, 435, 20);
+
+      // Tech specs box
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+      ctx.strokeStyle = accent + '40';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(36, 310, 440, 80, 8);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = accent;
+      ctx.font = '700 11px monospace';
+      ctx.fillText('DEPLOYMENT METRICS:', 48, 332);
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '500 11px monospace';
+      ctx.fillText('• STATUS: PRODUCTION READY ONLINE', 48, 352);
+      ctx.fillText('• URL: ' + project.url, 48, 370);
+
+      // Prominent CTA Button Box
+      ctx.fillStyle = accent;
+      ctx.beginPath();
+      ctx.roundRect(36, 410, 440, 52, 26);
+      ctx.fill();
+
+      ctx.fillStyle = '#030712';
+      ctx.font = '900 15px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('VISIT LIVE PROJECT ↗', 256, 442);
+      ctx.textAlign = 'left';
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.center.set(0.5, 0.5);
+    tex.rotation = Math.PI / 2;
+    tex.needsUpdate = true;
+    return tex;
+  }, [project]);
+
+  // Apply material to FBX meshes
   useMemo(() => {
-    if (!clonedFbx || !shellTexture) return;
+    if (!clonedFbx || !frontTexture) return;
 
-    shellTexture.colorSpace = THREE.SRGBColorSpace;
-    shellTexture.center.set(0.5, 0.5);
-    shellTexture.rotation = Math.PI / 2;
-    shellTexture.needsUpdate = true;
-
-    if (normalMap) normalMap.needsUpdate = true;
+    frontTexture.colorSpace = THREE.SRGBColorSpace;
+    frontTexture.center.set(0.5, 0.5);
+    frontTexture.rotation = Math.PI / 2;
+    frontTexture.needsUpdate = true;
 
     clonedFbx.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         mesh.material = new THREE.MeshStandardMaterial({
-          map: shellTexture,
+          map: frontTexture,
           normalMap: normalMap || null,
-          normalScale: new THREE.Vector2(0.3, 0.3),
+          normalScale: new THREE.Vector2(0.25, 0.25),
           roughness: isSelected ? 0.35 : 0.55,
           metalness: 0.25,
-          envMapIntensity: isSelected ? 1.5 : 0.8,
         });
       }
     });
-  }, [clonedFbx, shellTexture, normalMap, isSelected]);
+  }, [clonedFbx, frontTexture, normalMap, isSelected]);
 
-  // Smooth frame loop updating 3D positioning, Parallax, Specular Glare, Rim Lights, & Ground Shadow
+  // Smooth frame loop with OFF-SCREEN CULLING & 180° Y-Rotation Flip
   useFrame((state, delta) => {
     if (!groupRef.current) return;
 
     const currentOffset = offsetRef.current;
+    const currentPosIndex = index - currentOffset;
+    const distFromCenter = Math.abs(currentPosIndex);
+
     const isMobile = state.viewport.width < 5.5;
     const cardSpacing = isMobile ? 3.4 : 4.2;
 
-    const currentPosIndex = index - currentOffset;
-
     const targetX = currentPosIndex * cardSpacing;
+    const lerpSpeed = Math.min(delta * 12, 1.0);
+
+    // --- PERF OPTIMIZATION: OFF-SCREEN CULLING ---
+    // If card is far offscreen (> 2.2 units away), skip heavy lerps & lights
+    if (distFromCenter > 2.2) {
+      groupRef.current.position.x = THREE.MathUtils.lerp(groupRef.current.position.x, targetX, lerpSpeed);
+      groupRef.current.visible = distFromCenter <= 3.2; // Hide completely if > 3.2 away
+      return;
+    }
+    groupRef.current.visible = true;
+
     const targetZ = -Math.pow(currentPosIndex, 2) * (isMobile ? 0.6 : 0.5);
-
-    const targetRotY = currentPosIndex * -0.22;
-    const targetRotZ = currentPosIndex * -0.03;
-
     const floatOffset = Math.sin(state.clock.elapsedTime * 2 + index) * (isMobile ? 0.06 : 0.1);
     const targetY = isSelected ? 0.15 + floatOffset : floatOffset;
+
+    // 180-degree flip angle calculation
+    const flipAngle = isFlipped ? Math.PI : 0;
+    const targetRotY = currentPosIndex * -0.22 + flipAngle;
+    const targetRotZ = currentPosIndex * -0.03;
 
     const responsiveAutoScale = isMobile ? autoScale * 0.72 : autoScale;
     const baseScale = isSelected ? responsiveAutoScale * 1.0 : responsiveAutoScale * 0.8;
     const hoverScaleBonus = hovered && isSelected ? responsiveAutoScale * 0.06 : 0;
     const targetScale = baseScale + hoverScaleBonus;
 
-    const lerpSpeed = Math.min(delta * 12, 1.0);
     groupRef.current.position.x = THREE.MathUtils.lerp(groupRef.current.position.x, targetX, lerpSpeed);
     groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, targetY, lerpSpeed);
     groupRef.current.position.z = THREE.MathUtils.lerp(groupRef.current.position.z, targetZ, lerpSpeed);
@@ -321,39 +412,34 @@ export function CardModel({
       isSelected ? 0.05 : 0,
       lerpSpeed
     );
-    groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetRotY, lerpSpeed);
+    groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetRotY, Math.min(delta * 9, 1.0));
     groupRef.current.rotation.z = THREE.MathUtils.lerp(groupRef.current.rotation.z, targetRotZ, lerpSpeed);
 
     groupRef.current.scale.setScalar(
       THREE.MathUtils.lerp(groupRef.current.scale.x, targetScale, lerpSpeed)
     );
 
-    // --- EFFECT 1: SUBTLE 3D PARALLAX ---
-    // Shift screenshot image relative to the card frame based on cursor pointer
-    if (imageMeshRef.current && isSelected) {
+    // EFFECT 1: SUBTLE 3D PARALLAX (Active only when front-facing)
+    if (imageMeshRef.current && isSelected && !isFlipped) {
       const px = state.pointer.x * 0.12;
       const py = state.pointer.y * 0.12;
       imageMeshRef.current.position.x = THREE.MathUtils.lerp(imageMeshRef.current.position.x, px, lerpSpeed);
-      imageMeshRef.current.position.y = THREE.MathUtils.lerp(imageMeshRef.current.position.y, 0.08 + py, lerpSpeed);
+      imageMeshRef.current.position.y = THREE.MathUtils.lerp(imageMeshRef.current.position.y, 0.06 + py, lerpSpeed);
     }
 
-    // --- EFFECT 2: MOVING SPECULAR GLARE SWEEP ---
-    // Dynamic sheen sweep across card surface on hover/tilt
+    // EFFECT 2: MOVING SPECULAR GLARE SWEEP
     if (glareMeshRef.current) {
       const glareSweepX = Math.sin(state.clock.elapsedTime * 1.8 + index) * 0.8 + (hovered ? state.pointer.x * 0.4 : 0);
       glareMeshRef.current.position.x = THREE.MathUtils.lerp(glareMeshRef.current.position.x, glareSweepX, lerpSpeed);
     }
 
-    // --- EFFECT 3: RIM & EDGE LIGHTING ---
-    // Point light intensity scales dynamically as card rotates toward camera
-    if (lightRef.current) {
-      const rotAngleFactor = Math.cos(targetRotY);
-      const targetIntensity = isSelected ? 3.8 * rotAngleFactor : 0.8;
+    // EFFECT 3: SINGLE POINT LIGHT LERP (Selected card only)
+    if (lightRef.current && isSelected) {
+      const targetIntensity = 3.5;
       lightRef.current.intensity = THREE.MathUtils.lerp(lightRef.current.intensity, targetIntensity, lerpSpeed);
     }
 
-    // --- EFFECT 4: SOFT REFLECTION / GROUND SHADOW ---
-    // Shadow tracks card position, scaling & fading based on card height
+    // EFFECT 4: SOFT REFLECTION / GROUND SHADOW
     if (shadowMeshRef.current) {
       const shadowY = -1.85 - groupRef.current.position.y * 0.5;
       const shadowScale = (1.0 + (targetY - floatOffset) * 0.4) * (isSelected ? 1.1 : 0.85);
@@ -387,18 +473,27 @@ export function CardModel({
   const handleClick = (e: any) => {
     e.stopPropagation();
 
+    // Ignore click if dragging carousel
     if (typeof window !== 'undefined' && (window as any).__IS_CAROUSEL_DRAGGING__) {
       return;
     }
 
-    if (isSelected) {
+    if (!isSelected) {
+      onSelect();
+      return;
+    }
+
+    // If card is already flipped, check if user tapped the lower CTA area or top to flip back
+    if (isFlipped) {
+      // Direct navigation when tapping flipped card
       if (project.url.startsWith('http://') || project.url.startsWith('https://')) {
         window.open(project.url, '_blank', 'noopener,noreferrer');
-      } else {
+      } else if (project.url) {
         window.location.href = project.url;
       }
+      onToggleFlip();
     } else {
-      onSelect();
+      onToggleFlip();
     }
   };
 
@@ -412,9 +507,9 @@ export function CardModel({
       {/* Outer 3D Card FBX Mesh */}
       <primitive object={clonedFbx} />
 
-      {/* Inner 3D Parallax Viewport Screenshot Mesh */}
-      <mesh ref={imageMeshRef} position={[0, 0.08, 0.04]}>
-        <planeGeometry args={[1.82, 1.22]} />
+      {/* Front Face Viewport Screenshot Mesh (z = +0.04) */}
+      <mesh ref={imageMeshRef} position={[0, 0.06, 0.04]}>
+        <planeGeometry args={[1.82, 1.25]} />
         <meshStandardMaterial
           map={screenshotTexture}
           roughness={0.4}
@@ -423,13 +518,23 @@ export function CardModel({
         />
       </mesh>
 
+      {/* Back Face Detailed Description Mesh (z = -0.04, facing 180°) */}
+      <mesh position={[0, 0, -0.04]} rotation={[0, Math.PI, 0]}>
+        <planeGeometry args={[2.15, 3.35]} />
+        <meshStandardMaterial
+          map={backTexture || null}
+          roughness={0.35}
+          metalness={0.2}
+        />
+      </mesh>
+
       {/* Moving Specular Glare Sheen Overlay */}
-      <mesh ref={glareMeshRef} position={[0, 0.08, 0.07]}>
+      <mesh ref={glareMeshRef} position={[0, 0.06, 0.07]}>
         <planeGeometry args={[1.9, 2.8]} />
         <meshBasicMaterial
           map={glareTexture}
           transparent
-          opacity={hovered ? 0.65 : 0.35}
+          opacity={hovered ? 0.65 : 0.3}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
         />
@@ -446,14 +551,16 @@ export function CardModel({
         />
       </mesh>
 
-      {/* Dynamic Edge & Rim Lighting */}
-      <pointLight
-        ref={lightRef}
-        position={[0, 1.5, 1.8]}
-        intensity={isSelected ? 3.8 : 1.0}
-        color={project.accentColor || '#38BDF8'}
-        distance={6}
-      />
+      {/* Dynamic Edge & Rim Light (Rendered ONLY for selected card) */}
+      {isSelected && (
+        <pointLight
+          ref={lightRef}
+          position={[0, 1.5, 1.8]}
+          intensity={3.5}
+          color={project.accentColor || '#38BDF8'}
+          distance={6}
+        />
+      )}
     </group>
   );
 }

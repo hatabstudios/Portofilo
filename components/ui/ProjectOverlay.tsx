@@ -2,8 +2,7 @@
 
 import React from 'react';
 import { Project, PROJECTS } from '@/data/projects';
-import { ChevronLeft, ChevronRight, MousePointerClick, MoveHorizontal } from 'lucide-react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { ChevronLeft, ChevronRight, MoveHorizontal, RotateCw } from 'lucide-react';
 
 interface OverlayProps {
   activeProject: Project;
@@ -16,27 +15,15 @@ export function ProjectOverlay({
   activeProject,
   activeIndex,
   onSelectIndex,
-  onOpenModal,
 }: OverlayProps) {
   const isFirst = activeIndex === 0;
   const isLast = activeIndex === PROJECTS.length - 1;
-  const isRightAligned = activeProject.align === 'right';
-  const isExternalUrl = activeProject.url.startsWith('http://') || activeProject.url.startsWith('https://');
-
-  const handleActionClick = (e: React.MouseEvent) => {
-    if (!isExternalUrl) {
-      e.preventDefault();
-      window.location.href = activeProject.url;
-    }
-  };
-
   const accentColor = activeProject.accentColor || '#38BDF8';
-  const glowColor = activeProject.glowColor || 'rgba(56, 189, 248, 0.45)';
   const badgeText = activeProject.badge || 'WEB PROJECT';
 
   return (
     <div className="absolute inset-0 z-10 flex flex-col justify-between p-4 sm:p-6 md:p-12 pointer-events-none select-none">
-      {/* Top Controls & Active Indicator (Positioned cleanly below header on mobile) */}
+      {/* Top Controls & Active Indicator */}
       <div className="mt-16 sm:mt-20 md:mt-24 flex items-center justify-between pointer-events-auto">
         <div className="flex items-center gap-2 sm:gap-3">
           <span
@@ -83,73 +70,18 @@ export function ProjectOverlay({
         </div>
       </div>
 
-      {/* Main Content Area: Styled in isolated glassmorphic card so text never overlaps 3D background cards */}
-      <div className="mt-auto md:my-auto w-full flex items-center justify-between">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeProject.id}
-            initial={{ opacity: 0, y: 15, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -15, scale: 0.98 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            className={`pointer-events-auto p-5 sm:p-7 rounded-2xl bg-gray-950/90 backdrop-blur-xl border border-gray-800/90 shadow-2xl w-full max-w-sm sm:max-w-md ${
-              isRightAligned
-                ? 'ml-auto mr-0 text-right items-end'
-                : 'mr-auto ml-0 text-left items-start'
-            } flex flex-col space-y-2.5 sm:space-y-3`}
-            style={{
-              boxShadow: `0 15px 40px -10px ${glowColor}`,
-            }}
-          >
-            <h2
-              className="text-2xl sm:text-4xl md:text-5xl font-black font-heading tracking-tight text-white uppercase leading-none drop-shadow-md"
-              style={{
-                textShadow: `0 0 20px ${glowColor}`,
-              }}
-            >
-              {activeProject.name}
-            </h2>
-
-            <p className="text-xs sm:text-sm font-semibold font-heading text-amber-200/90 tracking-wide">
-              {activeProject.tagline}
-            </p>
-
-            <p className="text-xs sm:text-sm text-gray-300/90 leading-relaxed line-clamp-3">
-              {activeProject.description}
-            </p>
-
-            {/* Keycard Entry Cue & Interactive CTA Button */}
-            <div className={`pt-2 flex flex-col sm:flex-row items-center gap-2.5 w-full ${
-              isRightAligned ? 'justify-end' : 'justify-start'
-            }`}>
-              <a
-                href={activeProject.url}
-                target={isExternalUrl ? '_blank' : '_self'}
-                rel={isExternalUrl ? 'noopener noreferrer' : undefined}
-                onClick={handleActionClick}
-                data-clickable="true"
-                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full font-bold font-heading text-xs uppercase tracking-wider text-gray-950 transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg group cursor-pointer w-full sm:w-auto"
-                style={{
-                  backgroundColor: accentColor,
-                  boxShadow: `0 0 20px ${glowColor}`,
-                }}
-              >
-                <MousePointerClick size={15} className="animate-bounce group-hover:animate-none" />
-                <span>{isExternalUrl ? `Visit ${activeProject.name} ↗` : `Explore ${activeProject.name} ↗`}</span>
-              </a>
-              <span className="text-[10px] font-semibold text-gray-400 font-heading">
-                (or click 3D card)
-              </span>
-            </div>
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
       {/* Bottom Carousel Indicator Cue */}
-      <div className="mb-2 sm:mb-4 flex items-center justify-between text-xs text-gray-400 font-heading tracking-widest uppercase pointer-events-auto">
-        <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] font-semibold text-gray-300">
-          <MoveHorizontal size={14} className="text-amber-400 animate-pulse" />
-          <span>Swipe or drag cards</span>
+      <div className="mt-auto mb-2 sm:mb-4 flex items-center justify-between text-xs text-gray-400 font-heading tracking-widest uppercase pointer-events-auto">
+        <div className="flex items-center gap-3 text-[10px] sm:text-[11px] font-semibold text-gray-300">
+          <div className="flex items-center gap-1.5">
+            <RotateCw size={13} className="text-cyan-400 animate-spin" style={{ animationDuration: '6s' }} />
+            <span>Tap card to flip ↺</span>
+          </div>
+          <span className="text-gray-600">|</span>
+          <div className="flex items-center gap-1.5">
+            <MoveHorizontal size={13} className="text-amber-400 animate-pulse" />
+            <span>Drag to scroll</span>
+          </div>
         </div>
 
         {/* Carousel Indicators */}
