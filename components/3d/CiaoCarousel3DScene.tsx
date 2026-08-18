@@ -3,7 +3,7 @@
 import React, { Suspense, useEffect, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment, Preload } from '@react-three/drei';
-import { PROJECTS } from '@/data/projects';
+import { Project, PROJECTS } from '@/data/projects';
 import { CardModel } from './CardModel';
 import * as THREE from 'three';
 
@@ -11,12 +11,14 @@ interface SceneProps {
   activeIndex: number;
   onActiveChange: (index: number) => void;
   containerRef?: React.RefObject<HTMLDivElement | null>;
+  onOpenModal?: (project: Project) => void;
 }
 
 function CarouselController({
   activeIndex,
   onActiveChange,
   containerRef,
+  onOpenModal,
 }: SceneProps) {
   const offsetRef = useRef(activeIndex);
   const targetOffsetRef = useRef(activeIndex);
@@ -211,6 +213,7 @@ function CarouselController({
               targetOffsetRef.current = idx;
               onActiveChange(idx);
             }}
+            onOpenModal={onOpenModal}
           />
         );
       })}
@@ -230,6 +233,7 @@ function LoaderFallback() {
 export function CiaoCarousel3DScene({
   activeIndex,
   onActiveChange,
+  onOpenModal,
 }: SceneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -251,7 +255,7 @@ export function CiaoCarousel3DScene({
         <Environment preset="city" />
 
         <Suspense fallback={<LoaderFallback />}>
-          <CarouselController activeIndex={activeIndex} onActiveChange={onActiveChange} containerRef={containerRef} />
+          <CarouselController activeIndex={activeIndex} onActiveChange={onActiveChange} containerRef={containerRef} onOpenModal={onOpenModal} />
           <Preload all />
         </Suspense>
       </Canvas>

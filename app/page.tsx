@@ -1,17 +1,19 @@
 'use client';
 
 import React, { useState } from 'react';
-import { PROJECTS } from '@/data/projects';
+import { Project, PROJECTS } from '@/data/projects';
 import { CiaoCarousel3DScene } from '@/components/3d/CiaoCarousel3DScene';
 import { BackgroundCanvas } from '@/components/ui/BackgroundCanvas';
 import { Navbar } from '@/components/ui/Navbar';
 import { ProjectOverlay } from '@/components/ui/ProjectOverlay';
+import { ProjectModal } from '@/components/ui/ProjectModal';
 import { AboutSection } from '@/components/sections/AboutSection';
 import { ContactSection } from '@/components/sections/ContactSection';
 import { Footer } from '@/components/sections/Footer';
 
 export default function Home() {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [modalProject, setModalProject] = useState<Project | null>(null);
   const activeProject = PROJECTS[activeIndex] || PROJECTS[0];
 
   return (
@@ -29,6 +31,7 @@ export default function Home() {
           <CiaoCarousel3DScene
             activeIndex={activeIndex}
             onActiveChange={setActiveIndex}
+            onOpenModal={(project) => setModalProject(project)}
           />
         </div>
 
@@ -37,8 +40,15 @@ export default function Home() {
           activeProject={activeProject}
           activeIndex={activeIndex}
           onSelectIndex={setActiveIndex}
+          onOpenModal={(project) => setModalProject(project)}
         />
       </section>
+
+      {/* Interactive Project Showcase Modal */}
+      <ProjectModal
+        project={modalProject}
+        onClose={() => setModalProject(null)}
+      />
 
       {/* Below-The-Fold Sections */}
       <AboutSection />

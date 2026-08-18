@@ -9,16 +9,30 @@ interface OverlayProps {
   activeProject: Project;
   activeIndex: number;
   onSelectIndex: (index: number) => void;
+  onOpenModal: (project: Project) => void;
 }
 
 export function ProjectOverlay({
   activeProject,
   activeIndex,
   onSelectIndex,
+  onOpenModal,
 }: OverlayProps) {
   const isFirst = activeIndex === 0;
   const isLast = activeIndex === PROJECTS.length - 1;
   const isRightAligned = activeProject.align === 'right';
+  const isExternalUrl = activeProject.url.startsWith('http://') || activeProject.url.startsWith('https://');
+
+  const handleActionClick = (e: React.MouseEvent) => {
+    if (!isExternalUrl) {
+      e.preventDefault();
+      window.location.href = activeProject.url;
+    }
+  };
+
+  const accentColor = activeProject.accentColor || '#38BDF8';
+  const glowColor = activeProject.glowColor || 'rgba(56, 189, 248, 0.45)';
+  const badgeText = activeProject.badge || 'WEB PROJECT';
 
   return (
     <div className="absolute inset-0 z-10 flex flex-col justify-between p-4 sm:p-6 md:p-12 pointer-events-none select-none">
@@ -28,12 +42,12 @@ export function ProjectOverlay({
           <span
             className="px-2.5 py-1 text-[9px] sm:text-[10px] md:text-xs font-bold tracking-widest font-heading rounded-full uppercase border backdrop-blur-md"
             style={{
-              borderColor: activeProject.accentColor,
-              color: activeProject.accentColor,
+              borderColor: accentColor,
+              color: accentColor,
               backgroundColor: 'rgba(15, 23, 42, 0.8)',
             }}
           >
-            {activeProject.badge}
+            {badgeText}
           </span>
           <span className="text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-widest text-gray-400 uppercase font-heading">
             {String(activeIndex + 1).padStart(2, '0')} / {String(PROJECTS.length).padStart(2, '0')}
@@ -69,57 +83,61 @@ export function ProjectOverlay({
         </div>
       </div>
 
-      {/* Main Content Area: On mobile positioned at bottom so 3D card is fully visible. On desktop aligned left/right beside the card */}
-      <div className="mt-auto md:my-auto w-full">
+      {/* Main Content Area: Styled in isolated glassmorphic card so text never overlaps 3D background cards */}
+      <div className="mt-auto md:my-auto w-full flex items-center justify-between">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeProject.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0, y: 15, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -15, scale: 0.98 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
-            className={`pointer-events-none p-3 sm:p-4 md:p-0 rounded-xl md:rounded-none bg-gray-950/85 md:bg-transparent backdrop-blur-md md:backdrop-blur-none border border-gray-800/60 md:border-none shadow-xl md:shadow-none w-full max-w-none md:max-w-md ${
+            className={`pointer-events-auto p-5 sm:p-7 rounded-2xl bg-gray-950/90 backdrop-blur-xl border border-gray-800/90 shadow-2xl w-full max-w-sm sm:max-w-md ${
               isRightAligned
-                ? 'text-center md:ml-auto md:mr-0 md:text-right items-center md:items-end'
-                : 'text-center md:mr-auto md:ml-0 md:text-left items-center md:items-start'
-            } flex flex-col space-y-1.5 md:space-y-3`}
+                ? 'ml-auto mr-0 text-right items-end'
+                : 'mr-auto ml-0 text-left items-start'
+            } flex flex-col space-y-2.5 sm:space-y-3`}
+            style={{
+              boxShadow: `0 15px 40px -10px ${glowColor}`,
+            }}
           >
             <h2
-              className="text-2xl sm:text-3xl md:text-8xl font-black font-heading tracking-tight text-white uppercase drop-shadow-2xl leading-none"
+              className="text-2xl sm:text-4xl md:text-5xl font-black font-heading tracking-tight text-white uppercase leading-none drop-shadow-md"
               style={{
-                textShadow: `0 0 35px ${activeProject.glowColor}`,
+                textShadow: `0 0 20px ${glowColor}`,
               }}
             >
               {activeProject.name}
             </h2>
 
-            <p className="text-[11px] sm:text-xs md:text-xl font-medium text-amber-200/90 tracking-wide font-heading">
+            <p className="text-xs sm:text-sm font-semibold font-heading text-amber-200/90 tracking-wide">
               {activeProject.tagline}
             </p>
 
-            <p className="hidden md:block text-sm text-gray-300/80 leading-relaxed">
+            <p className="text-xs sm:text-sm text-gray-300/90 leading-relaxed line-clamp-3">
               {activeProject.description}
             </p>
 
             {/* Keycard Entry Cue & Interactive CTA Button */}
-            <div className={`pt-2 md:pt-4 flex flex-col sm:flex-row items-center gap-3 pointer-events-auto ${
-              isRightAligned ? 'md:justify-end' : 'md:justify-start'
+            <div className={`pt-2 flex flex-col sm:flex-row items-center gap-2.5 w-full ${
+              isRightAligned ? 'justify-end' : 'justify-start'
             }`}>
               <a
                 href={activeProject.url}
-                target="_blank"
-                rel="noopener noreferrer"
+                target={isExternalUrl ? '_blank' : '_self'}
+                rel={isExternalUrl ? 'noopener noreferrer' : undefined}
+                onClick={handleActionClick}
                 data-clickable="true"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-bold font-heading text-xs sm:text-sm uppercase tracking-wider text-gray-950 transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg group cursor-pointer"
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full font-bold font-heading text-xs uppercase tracking-wider text-gray-950 transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg group cursor-pointer w-full sm:w-auto"
                 style={{
-                  backgroundColor: activeProject.accentColor,
-                  boxShadow: `0 0 25px ${activeProject.glowColor}`,
+                  backgroundColor: accentColor,
+                  boxShadow: `0 0 20px ${glowColor}`,
                 }}
               >
-                <MousePointerClick size={16} className="animate-bounce group-hover:animate-none" />
-                <span>Visit {activeProject.name} ↗</span>
+                <MousePointerClick size={15} className="animate-bounce group-hover:animate-none" />
+                <span>{isExternalUrl ? `Visit ${activeProject.name} ↗` : `Explore ${activeProject.name} ↗`}</span>
               </a>
-              <span className="text-[10px] sm:text-xs font-semibold text-gray-400 font-heading tracking-wide">
+              <span className="text-[10px] font-semibold text-gray-400 font-heading">
                 (or click 3D card)
               </span>
             </div>
