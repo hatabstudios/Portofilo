@@ -245,7 +245,7 @@ export function CiaoCarousel3DScene({
   return (
     <div ref={containerRef} className="w-full h-full relative cursor-grab active:cursor-grabbing select-none">
       <Canvas
-        camera={{ position: [0, 0, 7.2], fov: 44 }}
+        camera={{ position: [0, 0, 10], fov: 55 }}
         dpr={[1, 2]}
         gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       >
